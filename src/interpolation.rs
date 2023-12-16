@@ -1,6 +1,6 @@
 use crate::scene::{CoordinateKeyframe, Coordinates, Emitter, Object, ObjectKeyframe, Receiver};
 
-trait Interpolation {
+pub trait Interpolation {
     /// Get a version of this object at the given time.
     /// If the object already has coordinates rather than keyframes, returns a copy of the object.
     /// If the time matches up with a keyframe, use that keyframe's coordinates.
@@ -239,14 +239,166 @@ impl Interpolation for Object {
 
 #[cfg(test)]
 mod tests {
-    use crate::scene::{CoordinateKeyframe, Coordinates, ObjectKeyframe};
+    use crate::scene::{
+        CoordinateKeyframe, Coordinates, Emitter, Object, ObjectKeyframe, Receiver,
+    };
 
-    // TODO tests: at_time() für Emitter, Object, Receiver
+    // TODO tests: at_time() für Object
 
     use super::{
         calculate_interp_position, interpolate_coordinate_keyframes, interpolate_coordinates,
-        interpolate_object_keyframes, interpolate_single_coordinate,
+        interpolate_object_keyframes, interpolate_single_coordinate, Interpolation,
     };
+
+    #[test]
+    fn interpolate_object() {
+        let object = Object {
+            index: 0,
+            coordinates: None,
+            keyframes: Some(vec![
+                ObjectKeyframe {
+                    time: 5,
+                    coords: vec![
+                        Coordinates {
+                            x: 1f32,
+                            y: 2f32,
+                            z: 3f32,
+                            w: 0.1f32,
+                        },
+                        Coordinates {
+                            x: 0f32,
+                            y: 1f32,
+                            z: 8f32,
+                            w: 0.5f32,
+                        },
+                    ],
+                },
+                ObjectKeyframe {
+                    time: 10,
+                    coords: vec![
+                        Coordinates {
+                            x: 3f32,
+                            y: 2f32,
+                            z: 5f32,
+                            w: 0.1f32,
+                        },
+                        Coordinates {
+                            x: 4f32,
+                            y: 5f32,
+                            z: 6f32,
+                            w: 0.5f32,
+                        },
+                    ],
+                },
+            ]),
+        };
+        let result = object.at_time(7);
+        assert_eq!(
+            Object {
+                index: 0,
+                keyframes: None,
+                coordinates: Some(vec![
+                    Coordinates {
+                        x: 18f32,
+                        y: 20f32,
+                        z: 38f32,
+                        w: 1f32,
+                    },
+                    Coordinates {
+                        x: 3.1999998f32,
+                        y: 5.2f32,
+                        z: 14.4f32,
+                        w: 1f32,
+                    },
+                ])
+            },
+            result
+        )
+    }
+
+    #[test]
+    fn interpolate_receiver() {
+        let receiver = Receiver {
+            index: 0,
+            coordinates: None,
+            keyframes: Some(vec![
+                CoordinateKeyframe {
+                    time: 5,
+                    coords: Coordinates {
+                        x: 3f32,
+                        y: 4f32,
+                        z: 0f32,
+                        w: 0.1f32,
+                    },
+                },
+                CoordinateKeyframe {
+                    time: 10,
+                    coords: Coordinates {
+                        x: 3f32,
+                        y: 2f32,
+                        z: 5f32,
+                        w: 0.1f32,
+                    },
+                },
+            ]),
+        };
+        let result = receiver.at_time(6);
+        assert_eq!(
+            Receiver {
+                keyframes: None,
+                index: 0,
+                coordinates: Some(Coordinates {
+                    x: 30f32,
+                    y: 36f32,
+                    z: 9.999999f32,
+                    w: 1f32
+                })
+            },
+            result
+        )
+    }
+
+    #[test]
+    fn interpolate_emitter() {
+        let emitter = Emitter {
+            index: 0,
+            coordinates: None,
+            keyframes: Some(vec![
+                CoordinateKeyframe {
+                    time: 5,
+                    coords: Coordinates {
+                        x: 3f32,
+                        y: 4f32,
+                        z: 0f32,
+                        w: 0.1f32,
+                    },
+                },
+                CoordinateKeyframe {
+                    time: 10,
+                    coords: Coordinates {
+                        x: 3f32,
+                        y: 2f32,
+                        z: 5f32,
+                        w: 0.1f32,
+                    },
+                },
+            ]),
+        };
+        let result = emitter.at_time(6);
+        assert_eq!(
+            Emitter {
+                keyframes: None,
+                index: 0,
+                coordinates: Some(Coordinates {
+                    x: 30f32,
+                    y: 36f32,
+                    z: 9.999999f32,
+                    w: 1f32
+                })
+            },
+            result
+        )
+    }
 
     #[test]
     fn interpolate_object_keyframes_before() {
