@@ -52,7 +52,7 @@ fn interpolate_coordinates(
     coords2: &Coordinates,
     interp_position: f32,
 ) -> Coordinates {
-    return Coordinates {
+    Coordinates {
         x: interpolate_single_coordinate(
             coords1.x,
             coords1.w,
@@ -75,7 +75,7 @@ fn interpolate_coordinates(
             interp_position,
         ),
         w: 1f32,
-    };
+    }
 }
 
 /// Get the interpolated value, taking the w value into account.
@@ -96,7 +96,8 @@ fn interpolate_single_coordinate(
 ) -> f32 {
     coord1 /= w1;
     coord2 /= w2;
-    return coord1 * interp_position + coord2 * (1f32 - interp_position);
+
+    coord1 * interp_position + coord2 * (1f32 - interp_position)
 }
 
 /// Calculate the interpolated coordinate at the given time.
@@ -144,12 +145,12 @@ fn interpolate_coordinate_keyframes(keyframes: &Vec<CoordinateKeyframe>, time: u
 fn interpolate_object_keyframes<const N: usize>(keyframes: &Vec<ObjectKeyframe<N>>, time: u32) -> [Coordinates; N] {
     // return out early if we're after the last keyframe, otherwise we'd need to iterate over all the keyframes first
     if time >= keyframes[keyframes.len() - 1].time {
-        return keyframes[keyframes.len() - 1].coords.clone();
+        return keyframes[keyframes.len() - 1].coords;
     }
 
     for i in 0..keyframes.len() {
         if time <= keyframes[i].time {
-            return keyframes[i].coords.clone();
+            return keyframes[i].coords;
         }
         if time >= keyframes[i].time && time < keyframes[i + 1].time {
             let interp_position =
@@ -174,7 +175,7 @@ fn interpolate_object_keyframes<const N: usize>(keyframes: &Vec<ObjectKeyframe<N
 /// * `second_time`: Time of the second keyframe.
 /// * `time`: The current time.
 fn calculate_interp_position(first_time: u32, second_time: u32, time: u32) -> f32 {
-    return ((second_time - time) as f32) / ((second_time - first_time) as f32);
+    ((second_time - time) as f32) / ((second_time - first_time) as f32)
 }
 
 impl Interpolation for Emitter {
@@ -189,11 +190,11 @@ impl Interpolation for Emitter {
         }
 
         let keyframes = self.keyframes.as_ref().unwrap();
-        return Self {
+        Self {
             keyframes: None,
             index: self.index,
             coordinates: Some(interpolate_coordinate_keyframes(keyframes, time)),
-        };
+        }
     }
 }
 
@@ -209,11 +210,11 @@ impl Interpolation for Receiver {
         }
 
         let keyframes = self.keyframes.as_ref().unwrap();
-        return Self {
+        Self {
             keyframes: None,
             index: self.index,
             coordinates: Some(interpolate_coordinate_keyframes(keyframes, time)),
-        };
+        }
     }
 }
 
@@ -224,16 +225,16 @@ impl<const N: usize> Interpolation for Surface<N> {
             return Self {
                 keyframes: None,
                 index: self.index,
-                coordinates: self.coordinates.clone(),
+                coordinates: self.coordinates,
             };
         }
 
         let keyframes = self.keyframes.as_ref().unwrap();
-        return Self {
+        Self {
             keyframes: None,
             index: self.index,
             coordinates: Some(interpolate_object_keyframes(keyframes, time)),
-        };
+        }
     }
 }
 
