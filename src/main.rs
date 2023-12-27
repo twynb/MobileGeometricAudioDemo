@@ -3,6 +3,8 @@
 
 mod scene;
 mod interpolation;
+mod ray;
+mod chunk;
 
 fn main() {
     println!("Hello, world!");

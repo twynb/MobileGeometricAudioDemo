@@ -1,4 +1,4 @@
-use crate::scene::{CoordinateKeyframe, Coordinates, Emitter, Surface, ObjectKeyframe, Receiver};
+use crate::scene::{CoordinateKeyframe, Coordinates, Emitter, Surface, SurfaceKeyframe, Receiver};
 
 pub trait Interpolation {
     /// Get a version of this object at the given time.
@@ -142,7 +142,7 @@ fn interpolate_coordinate_keyframes(keyframes: &Vec<CoordinateKeyframe>, time: u
 /// # Arguments
 /// * `keyframes`: The keyframes to interpolate between. Must be sorted by time.
 /// * `time`: The time.
-fn interpolate_object_keyframes<const N: usize>(keyframes: &Vec<ObjectKeyframe<N>>, time: u32) -> [Coordinates; N] {
+fn interpolate_object_keyframes<const N: usize>(keyframes: &Vec<SurfaceKeyframe<N>>, time: u32) -> [Coordinates; N] {
     // return out early if we're after the last keyframe, otherwise we'd need to iterate over all the keyframes first
     if time >= keyframes[keyframes.len() - 1].time {
         return keyframes[keyframes.len() - 1].coords;
@@ -241,7 +241,7 @@ impl<const N: usize> Interpolation for Surface<N> {
 #[cfg(test)]
 mod tests {
     use crate::scene::{
-        CoordinateKeyframe, Coordinates, Emitter, Surface, ObjectKeyframe, Receiver,
+        CoordinateKeyframe, Coordinates, Emitter, Surface, SurfaceKeyframe, Receiver,
     };
 
     // TODO tests: at_time() für Object
@@ -257,7 +257,7 @@ mod tests {
             index: 0,
             coordinates: None,
             keyframes: Some(vec![
-                ObjectKeyframe {
+                SurfaceKeyframe {
                     time: 5,
                     coords: [
                         Coordinates {
@@ -274,7 +274,7 @@ mod tests {
                         },
                     ],
                 },
-                ObjectKeyframe {
+                SurfaceKeyframe {
                     time: 10,
                     coords: [
                         Coordinates {
@@ -404,7 +404,7 @@ mod tests {
     #[test]
     fn interpolate_object_keyframes_before() {
         let keyframes = vec![
-            ObjectKeyframe {
+            SurfaceKeyframe {
                 time: 5,
                 coords: [
                     Coordinates {
@@ -421,7 +421,7 @@ mod tests {
                     },
                 ],
             },
-            ObjectKeyframe {
+            SurfaceKeyframe {
                 time: 10,
                 coords: [
                     Coordinates {
@@ -462,7 +462,7 @@ mod tests {
     #[test]
     fn interpolate_object_keyframes_during() {
         let keyframes = vec![
-            ObjectKeyframe {
+            SurfaceKeyframe {
                 time: 5,
                 coords: [
                     Coordinates {
@@ -479,7 +479,7 @@ mod tests {
                     },
                 ],
             },
-            ObjectKeyframe {
+            SurfaceKeyframe {
                 time: 10,
                 coords: [
                     Coordinates {
@@ -520,7 +520,7 @@ mod tests {
     #[test]
     fn interpolate_object_keyframes_after() {
         let keyframes = vec![
-            ObjectKeyframe {
+            SurfaceKeyframe {
                 time: 5,
                 coords: [
                     Coordinates {
@@ -537,7 +537,7 @@ mod tests {
                     },
                 ],
             },
-            ObjectKeyframe {
+            SurfaceKeyframe {
                 time: 10,
                 coords: [
                     Coordinates {
