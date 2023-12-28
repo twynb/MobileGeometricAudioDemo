@@ -16,7 +16,7 @@ impl Coordinates {
             w: 1f32,
         }
     }
-    
+
     pub fn max_coords(&self, other: &Self) -> Self {
         Self {
             x: (self.x / self.w).max(other.x / other.w),
@@ -87,4 +87,53 @@ pub struct Scene {
     pub surfaces: Vec<Surface<4>>, // for now we only work with rectangles
     pub receiver: Receiver,
     pub emitter: Emitter,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Coordinates;
+
+    fn test_min_coords() {
+        let coords1 = Coordinates {
+            x: 1f32,
+            y: 3f32,
+            z: 0f32,
+            w: 0.5f32,
+        };
+        let coords2 = Coordinates {
+            x: 5f32,
+            y: -1f32,
+            z: 2f32,
+            w: 1f32,
+        };
+        let result = coords1.min_coords(&coords2);
+        assert_eq!(Coordinates {
+            x: 2f32,
+            y: -1f32,
+            z: 0f32,
+            w: 1f32
+        }, result)
+    }
+
+    fn test_max_coords() {
+        let coords1 = Coordinates {
+            x: 1f32,
+            y: 3f32,
+            z: 0f32,
+            w: 0.5f32,
+        };
+        let coords2 = Coordinates {
+            x: 5f32,
+            y: -1f32,
+            z: 2f32,
+            w: 1f32,
+        };
+        let result = coords1.min_coords(&coords2);
+        assert_eq!(Coordinates {
+            x: 5f32,
+            y: 6f32,
+            z: 2f32,
+            w: 1f32
+        }, result)
+    }
 }

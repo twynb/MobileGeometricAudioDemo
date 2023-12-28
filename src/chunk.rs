@@ -1,7 +1,7 @@
-use crate::scene::{Coordinates, Scene, SurfaceKeyframe};
+use crate::scene::{Coordinates, Receiver, Scene, Surface, SurfaceKeyframe};
 use itertools::Itertools;
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 struct SceneChunk {
     object_indices: Vec<usize>,
     receiver_indices: Vec<usize>,
@@ -128,92 +128,28 @@ impl Scene {
         });
         let mut final_result = result.clone();
 
-        let (min_coords, max_coords) = self.maximum_bounds();
-        let x_chunk_size = (max_coords.x - min_coords.x) / N as f32;
-        let y_chunk_size = (max_coords.y - min_coords.y) / N as f32;
-        let z_chunk_size = (max_coords.z - min_coords.z) / N as f32;
+        let (min_bounds, max_bounds) = self.maximum_bounds();
+        let (x_chunk_size, y_chunk_size, z_chunk_size) =
+            calculate_chunk_size::<N>(&min_bounds, &max_bounds);
 
-        // calculate gradients between each keyframe
-        // take chunks within those gradients
-        for surface in &self.surfaces {
-            if surface.keyframes.is_none() {
-                continue;
-            }
-            let keyframes = surface.keyframes.as_ref().unwrap();
-            let (mut first_keyframe_min, mut first_keyframe_max) = keyframes[0].maximum_bounds();
-            for keyframe in keyframes.iter().skip(1) {
-                let (second_keyframe_min, second_keyframe_max) = keyframe.maximum_bounds();
-                update_maximum_bounds(
-                    &second_keyframe_min,
-                    &mut first_keyframe_min,
-                    &mut first_keyframe_max,
-                );
-                update_maximum_bounds(
-                    &second_keyframe_max,
-                    &mut first_keyframe_min,
-                    &mut first_keyframe_max,
-                );
-
-                let (x_first_chunk, y_first_chunk, z_first_chunk) = coords_to_chunk_index(
-                    &first_keyframe_min,
-                    &min_coords,
-                    x_chunk_size,
-                    y_chunk_size,
-                    z_chunk_size,
-                );
-                let (x_last_chunk, y_last_chunk, z_last_chunk) = coords_to_chunk_index(
-                    &first_keyframe_max,
-                    &max_coords,
-                    x_chunk_size,
-                    y_chunk_size,
-                    z_chunk_size,
-                );
-
-                for x in result.iter_mut().take(x_last_chunk + 1).skip(x_first_chunk) {
-                    for y in x.iter_mut().take(y_last_chunk + 1).skip(y_first_chunk) {
-                        for z in y.iter_mut().take(z_last_chunk + 1).skip(z_first_chunk) {
-                            z.object_indices.push(surface.index);
-                        }
-                    }
-                }
-
-                first_keyframe_min = second_keyframe_min;
-                first_keyframe_max = second_keyframe_max;
-            }
-        }
+        add_surfaces_to_chunks(
+            &mut result,
+            &self.surfaces,
+            &min_bounds,
+            x_chunk_size,
+            y_chunk_size,
+            z_chunk_size,
+        );
 
         if self.receiver.keyframes.is_some() {
-            let keyframes = self.receiver.keyframes.as_ref().unwrap();
-            let mut first_keyframe_coords = keyframes[0].coords;
-            for keyframe in keyframes.iter().skip(1) {
-                let second_keyframe_coords = keyframe.coords;
-                let min = first_keyframe_coords.min_coords(&second_keyframe_coords);
-                let max = first_keyframe_coords.max_coords(&second_keyframe_coords);
-
-                let (x_first_chunk, y_first_chunk, z_first_chunk) = coords_to_chunk_index(
-                    &min,
-                    &min_coords,
-                    x_chunk_size,
-                    y_chunk_size,
-                    z_chunk_size,
-                );
-                let (x_last_chunk, y_last_chunk, z_last_chunk) = coords_to_chunk_index(
-                    &max,
-                    &max_coords,
-                    x_chunk_size,
-                    y_chunk_size,
-                    z_chunk_size,
-                );
-
-                for x in result.iter_mut().take(x_last_chunk + 1).skip(x_first_chunk) {
-                    for y in x.iter_mut().take(y_last_chunk + 1).skip(y_first_chunk) {
-                        for z in y.iter_mut().take(z_last_chunk + 1).skip(z_first_chunk) {
-                            z.receiver_indices.push(self.receiver.index);
-                        }
-                    }
-                }
-                first_keyframe_coords = second_keyframe_coords;
-            }
+            add_receiver_to_chunks(
+                &mut result,
+                &self.receiver,
+                &min_bounds,
+                x_chunk_size,
+                y_chunk_size,
+                z_chunk_size,
+            );
         }
 
         for x in 0..N {
@@ -239,22 +175,144 @@ impl Scene {
     }
 }
 
+fn calculate_chunk_size<const N: usize>(
+    min_coords: &Coordinates,
+    max_coords: &Coordinates,
+) -> (f32, f32, f32) {
+    (
+        single_chunk_size::<N>(min_coords.x, max_coords.x),
+        single_chunk_size::<N>(min_coords.y, max_coords.y),
+        single_chunk_size::<N>(min_coords.z, max_coords.z),
+    )
+}
+
+fn single_chunk_size<const N: usize>(min: f32, max: f32) -> f32 {
+    let result = (max - min) / N as f32;
+    if result <= 0f32 {
+        return 0.1f32;
+    }
+    result
+}
+
 fn coords_to_chunk_index(
     coords: &Coordinates,
-    min_coords: &Coordinates,
+    scene_min_bounds: &Coordinates,
     x_chunk_size: f32,
     y_chunk_size: f32,
     z_chunk_size: f32,
 ) -> (usize, usize, usize) {
     (
-        ((coords.x - min_coords.x) / x_chunk_size).floor() as usize,
-        ((coords.y - min_coords.y) / y_chunk_size).floor() as usize,
-        ((coords.z - min_coords.z) / z_chunk_size).floor() as usize,
+        ((coords.x - scene_min_bounds.x) / x_chunk_size).floor() as usize,
+        ((coords.y - scene_min_bounds.y) / y_chunk_size).floor() as usize,
+        ((coords.z - scene_min_bounds.z) / z_chunk_size).floor() as usize,
     )
+}
+
+fn add_surfaces_to_chunks<const N: usize, const S: usize>(
+    result: &mut Chunks3D<N>,
+    surfaces: &[Surface<S>],
+    min_bounds: &Coordinates,
+    x_chunk_size: f32,
+    y_chunk_size: f32,
+    z_chunk_size: f32,
+) {
+    for surface in surfaces {
+        if surface.keyframes.is_none() {
+            continue;
+        }
+        let keyframes = surface.keyframes.as_ref().unwrap();
+        let (mut first_keyframe_min, mut first_keyframe_max) = keyframes[0].maximum_bounds();
+        for keyframe in keyframes.iter().skip(1) {
+            let (second_keyframe_min, second_keyframe_max) = keyframe.maximum_bounds();
+            update_maximum_bounds(
+                &second_keyframe_min,
+                &mut first_keyframe_min,
+                &mut first_keyframe_max,
+            );
+            update_maximum_bounds(
+                &second_keyframe_max,
+                &mut first_keyframe_min,
+                &mut first_keyframe_max,
+            );
+
+            let (x_first_chunk, y_first_chunk, z_first_chunk) = coords_to_chunk_index(
+                &first_keyframe_min,
+                min_bounds,
+                x_chunk_size,
+                y_chunk_size,
+                z_chunk_size,
+            );
+            let (x_last_chunk, y_last_chunk, z_last_chunk) = coords_to_chunk_index(
+                &first_keyframe_max,
+                min_bounds,
+                x_chunk_size,
+                y_chunk_size,
+                z_chunk_size,
+            );
+
+            for x in result.iter_mut().take(x_last_chunk + 1).skip(x_first_chunk) {
+                for y in x.iter_mut().take(y_last_chunk + 1).skip(y_first_chunk) {
+                    for z in y.iter_mut().take(z_last_chunk + 1).skip(z_first_chunk) {
+                        z.object_indices.push(surface.index);
+                    }
+                }
+            }
+
+            first_keyframe_min = second_keyframe_min;
+            first_keyframe_max = second_keyframe_max;
+        }
+    }
+}
+
+fn add_receiver_to_chunks<const N: usize>(
+    result: &mut Chunks3D<N>,
+    receiver: &Receiver,
+    min_bounds: &Coordinates,
+    x_chunk_size: f32,
+    y_chunk_size: f32,
+    z_chunk_size: f32,
+) {
+    let keyframes = receiver.keyframes.as_ref().unwrap();
+    let mut first_keyframe_coords = keyframes[0].coords;
+
+    if keyframes.len() == 1 {
+        let (x_chunk, y_chunk, z_chunk) = coords_to_chunk_index(
+            &first_keyframe_coords,
+            min_bounds,
+            x_chunk_size,
+            y_chunk_size,
+            z_chunk_size,
+        );
+        result[x_chunk][y_chunk][z_chunk]
+            .receiver_indices
+            .push(receiver.index);
+        return;
+    }
+
+    for keyframe in keyframes.iter().skip(1) {
+        let second_keyframe_coords = keyframe.coords;
+        let min = first_keyframe_coords.min_coords(&second_keyframe_coords);
+        let max = first_keyframe_coords.max_coords(&second_keyframe_coords);
+
+        let (x_first_chunk, y_first_chunk, z_first_chunk) =
+            coords_to_chunk_index(&min, min_bounds, x_chunk_size, y_chunk_size, z_chunk_size);
+        let (x_last_chunk, y_last_chunk, z_last_chunk) =
+            coords_to_chunk_index(&max, min_bounds, x_chunk_size, y_chunk_size, z_chunk_size);
+
+        for x in result.iter_mut().take(x_last_chunk + 1).skip(x_first_chunk) {
+            for y in x.iter_mut().take(y_last_chunk + 1).skip(y_first_chunk) {
+                for z in y.iter_mut().take(z_last_chunk + 1).skip(z_first_chunk) {
+                    z.receiver_indices.push(receiver.index);
+                }
+            }
+        }
+        first_keyframe_coords = second_keyframe_coords;
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use super::{Chunks3D, SceneChunk};
     use crate::scene::{
         CoordinateKeyframe, Coordinates, Emitter, Receiver, Scene, Surface, SurfaceKeyframe,
     };
@@ -600,7 +658,28 @@ mod tests {
     }
 
     #[test]
-    fn test_chunks_empty_scene() {
-        let _scene = empty_scene();
+    fn chunks_empty_scene() {
+        let scene = empty_scene();
+        let (chunks, chunk_size) = scene.chunks::<10>();
+        assert_eq!((0.1f32, 0.1f32, 0.1f32), chunk_size);
+        let mut expected: Chunks3D<10> = array_init::array_init(|_| {
+            array_init::array_init(|_2| {
+                array_init::array_init(|_3| SceneChunk {
+                    object_indices: vec![],
+                    receiver_indices: vec![],
+                })
+            })
+        });
+        for x in 0..10 {
+            for y in 0..10 {
+                for z in 0..10 {
+                    if chunks[x][y][z].receiver_indices.len() != 0 {
+                        println!("{}, {}, {}", x, y, z)
+                    }
+                }
+            }
+        }
+        expected[0][0][0].receiver_indices.push(0);
+        assert_eq!(expected, chunks);
     }
 }
