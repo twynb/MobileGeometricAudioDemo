@@ -5,6 +5,13 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lints.clippy]
+enum_glob_use = "deny"
+pedantic = "deny"
+
 [dependencies]
 array-init = "2.1.0"
+generic-array = "1.0.0"
 itertools = "0.12.0"
+num-integer = "0.1.45"
+typenum = "1.17.0"

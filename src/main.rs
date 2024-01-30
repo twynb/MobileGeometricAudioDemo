@@ -5,6 +5,7 @@ mod scene;
 mod interpolation;
 mod ray;
 mod chunk;
+mod scene_bounds;
 
 fn main() {
     println!("Hello, world!");

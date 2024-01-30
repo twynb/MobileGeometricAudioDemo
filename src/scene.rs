@@ -1,28 +1,41 @@
-/// base coordinates pub struct
+/// Base coordinates struct. Holds x, y and z coordinates.
 #[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
 pub struct Coordinates {
     pub x: f32,
     pub y: f32,
     pub z: f32,
-    pub w: f32,
 }
 
 impl Coordinates {
+    /// Get the minimum coordinates between these coordinates and `other`.
+    /// 
+    /// # Example
+    /// ```
+    /// let coords1 = Coordinates {x: 1f32, y: 2f32, z: 3f32};
+    /// let coords2 = Coordinates {x: 6f32, y: 2f32, z: 1f32};
+    /// assert_eq!(Coordinates {x: 1f32, y: 2f32, z: 1f32}, coords1.min_coords(coords2));
+    /// ```
     pub fn min_coords(&self, other: &Self) -> Self {
         Self {
-            x: (self.x / self.w).min(other.x / other.w),
-            y: (self.y / self.w).min(other.y / other.w),
-            z: (self.z / self.w).min(other.z / other.w),
-            w: 1f32,
+            x: self.x.min(other.x),
+            y: self.y.min(other.y),
+            z: self.z.min(other.z),
         }
     }
 
+    /// Get the maximum coordinates between these coordinates and `other`.
+    /// 
+    /// # Example
+    /// ```
+    /// let coords1 = Coordinates {x: 1f32, y: 2f32, z: 3f32};
+    /// let coords2 = Coordinates {x: 6f32, y: 2f32, z: 1f32};
+    /// assert_eq!(Coordinates {x: 1f32, y: 2f32, z: 1f32}, coords1.min_coords(coords2));
+    /// ```
     pub fn max_coords(&self, other: &Self) -> Self {
         Self {
-            x: (self.x / self.w).max(other.x / other.w),
-            y: (self.y / self.w).max(other.y / other.w),
-            z: (self.z / self.w).max(other.z / other.w),
-            w: 1f32,
+            x: self.x.max(other.x),
+            y: self.y.max(other.y),
+            z: self.z.max(other.z),
         }
     }
 }
@@ -33,58 +46,54 @@ impl Default for Coordinates {
             x: 0f32,
             y: 0f32,
             z: 0f32,
-            w: 1f32,
         }
     }
 }
 
 /// Keyframe for a single set of coordinates.
-#[derive(PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct CoordinateKeyframe {
     pub time: u32,
     pub coords: Coordinates,
 }
 
 /// Sound emitter.
-/// `coordinates` should only be Some when this Emitter is returned by the atTime() function TODO
-/// `keyframes` is expected to be sorted by keyframe time.
-#[derive(PartialEq, Debug)]
-pub struct Emitter {
-    pub keyframes: Option<Vec<CoordinateKeyframe>>,
-    pub index: usize,
-    pub coordinates: Option<Coordinates>,
+/// Either has its separate keyframes (sorted by time) or a single interpolated keyframe at a given time.
+#[derive(Clone, PartialEq, Debug)]
+pub enum Emitter {
+    Keyframes(Vec<CoordinateKeyframe>),
+    Interpolated(Coordinates, u32)
 }
 
 /// Sound receiver.
-/// `coordinates` should only be Some when this Receiver is returned by the atTime() function TODO
-/// `keyframes` is expected to be sorted by keyframe time.
-#[derive(PartialEq, Debug)]
-pub struct Receiver {
-    pub keyframes: Option<Vec<CoordinateKeyframe>>,
-    pub index: usize,
-    pub coordinates: Option<Coordinates>,
+/// Either has its separate keyframes (sorted by time) or a single interpolated keyframe at a given time.
+/// Always also has a radius.
+#[derive(Clone, PartialEq, Debug)]
+pub enum Receiver {
+    Keyframes(Vec<CoordinateKeyframe>, f32),
+    Interpolated(Coordinates, f32, u32)
 }
 
-/// Keyframe for a set of coordinates for an object.
-#[derive(PartialEq, Debug)]
+/// Keyframe for a set of coordinates for a surface.
+#[derive(Clone, PartialEq, Debug)]
 pub struct SurfaceKeyframe<const N: usize> {
     pub time: u32,
     pub coords: [Coordinates; N],
 }
-/// Object in the scene.
-/// `coordinates` should only be Some when this Object is returned by the atTime() function TODO
-/// `keyframes` is expected to be sorted by keyframe time.
-/// It is expected that all CoordinateKeyframes have the same amount of coordinates.
-#[derive(PartialEq, Debug)]
-pub struct Surface<const N: usize> {
-    pub keyframes: Option<Vec<SurfaceKeyframe<N>>>,
-    pub index: usize,
-    pub coordinates: Option<[Coordinates; N]>,
+
+/// Surface in the scene.
+/// Either has its separate keyframes (sorted by time) or a single interpolated keyframe at a given time.
+#[derive(Clone, PartialEq, Debug)]
+pub enum Surface<const N: usize> {
+    Keyframes(Vec<SurfaceKeyframe<N>>),
+    Interpolated([Coordinates; N], u32)
 }
 
-#[derive(PartialEq, Debug)]
+/// The full scene.
+/// Scenes always have a single emitter and receiver, but support multiple surfaces.
+#[derive(Clone, PartialEq, Debug)]
 pub struct Scene {
-    pub surfaces: Vec<Surface<4>>, // for now we only work with rectangles
+    pub surfaces: Vec<Surface<3>>, // for now we only work with triangles
     pub receiver: Receiver,
     pub emitter: Emitter,
 }
@@ -95,45 +104,39 @@ mod tests {
 
     fn test_min_coords() {
         let coords1 = Coordinates {
-            x: 1f32,
-            y: 3f32,
+            x: 2f32,
+            y: 6f32,
             z: 0f32,
-            w: 0.5f32,
         };
         let coords2 = Coordinates {
             x: 5f32,
             y: -1f32,
             z: 2f32,
-            w: 1f32,
         };
         let result = coords1.min_coords(&coords2);
         assert_eq!(Coordinates {
             x: 2f32,
             y: -1f32,
             z: 0f32,
-            w: 1f32
         }, result)
     }
 
     fn test_max_coords() {
         let coords1 = Coordinates {
-            x: 1f32,
-            y: 3f32,
+            x: 2f32,
+            y: 6f32,
             z: 0f32,
-            w: 0.5f32,
         };
         let coords2 = Coordinates {
             x: 5f32,
             y: -1f32,
             z: 2f32,
-            w: 1f32,
         };
         let result = coords1.min_coords(&coords2);
         assert_eq!(Coordinates {
             x: 5f32,
             y: 6f32,
             z: 2f32,
-            w: 1f32
         }, result)
     }
 }
