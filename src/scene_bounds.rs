@@ -78,7 +78,7 @@ impl Scene {
         }
         match &self.receiver {
             Receiver::Interpolated(coordinates, radius, _time) => {
-                update_maximum_bounds(&coordinates, &mut min_coords, &mut max_coords, Some(*radius));
+                update_maximum_bounds(coordinates, &mut min_coords, &mut max_coords, Some(*radius));
             }
             Receiver::Keyframes(keyframes, radius) => {
                 for keyframe in keyframes {

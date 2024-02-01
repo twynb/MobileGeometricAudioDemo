@@ -90,8 +90,8 @@ pub fn interpolate_coordinate_keyframes(
 
     for pair in keyframes.windows(2) {
         let result = interpolate_two_coordinate_keyframes(&pair[0], &pair[1], time);
-        if result.is_some() {
-            return result.unwrap();
+        if let Some(result) = result {
+            return result
         }
     }
 
@@ -128,7 +128,7 @@ pub fn interpolate_two_coordinate_keyframes(
             interp_position,
         ));
     }
-    return None;
+    None
 }
 
 /// Calculate the interpolated coordinate at the given time.
@@ -151,8 +151,8 @@ fn interpolate_surface_keyframes<const N: usize>(
 
     for pair in keyframes.windows(2) {
         let result = interpolate_two_surface_keyframes(&pair[0], &pair[1], time);
-        if result.is_some() {
-            return result.unwrap();
+        if let Some(result) = result {
+            return result
         }
     }
 
@@ -189,7 +189,7 @@ pub fn interpolate_two_surface_keyframes<const N: usize>(
             interp_position,
         ));
     }
-    return None;
+    None
 }
 
 /// Calculate the interpolation position, i.e. how much of the keyframe at `first_time`
