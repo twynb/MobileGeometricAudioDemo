@@ -138,7 +138,7 @@ where
     ) {
         let key = self.key_for_coordinates(x, y, z);
         self.set_chunks[key as usize] = true;
-        let entry = create_entry(index, time);
+        let entry = create_chunk_entry(index, time);
         let chunk = self.chunks.get_mut(&key);
         if let Some(chunk) = chunk {
             chunk.surfaces.push(entry);
@@ -204,7 +204,7 @@ where
     ) {
         let key = self.key_for_coordinates(x, y, z);
         self.set_chunks[key as usize] = true;
-        let entry = create_entry(index, time);
+        let entry = create_chunk_entry(index, time);
         let chunk = self.chunks.get_mut(&key);
         if let Some(chunk) = chunk {
             chunk.receivers.push(entry);
@@ -221,7 +221,7 @@ where
 }
 
 /// Create the TimedChunkEntry for the given index and time.
-fn create_entry(index: usize, time: Option<(u32, Option<u32>)>) -> TimedChunkEntry {
+fn create_chunk_entry(index: usize, time: Option<(u32, Option<u32>)>) -> TimedChunkEntry {
     match time {
         Some((enter, exit)) => match exit {
             Some(exit) => TimedChunkEntry::Dynamic(index, enter, exit),
@@ -567,16 +567,10 @@ where
     <C as Mul>::Output: Mul<C>,
     <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
 {
-    let minimum_bounds = Coordinates {
-        x: coordinates.x - radius,
-        y: coordinates.y - radius,
-        z: coordinates.z - radius,
-    };
-    let maximum_bounds = Coordinates {
-        x: coordinates.x + radius,
-        y: coordinates.y + radius,
-        z: coordinates.z + radius,
-    };
+    let mut minimum_bounds = *coordinates;
+    minimum_bounds.add(-radius);
+    let mut maximum_bounds = *coordinates;
+    maximum_bounds.add(radius);
     (
         coords_to_chunk_index(&minimum_bounds, chunks),
         coords_to_chunk_index(&maximum_bounds, chunks),
@@ -616,4 +610,133 @@ where
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use std::collections::HashMap;
+
+    use generic_array::GenericArray;
+    use typenum::U10;
+
+    use crate::{
+        chunk::{chunk_bounds, coords_to_chunk_index, create_chunk_entry, single_chunk_size, sphere_chunk_bounds, TimedChunkEntry},
+        scene::Coordinates,
+    };
+
+    use super::{calculate_chunk_size, Chunks};
+
+    fn empty_chunks() -> Chunks<U10> {
+        Chunks {
+            set_chunks: GenericArray::default(),
+            chunks: HashMap::new(),
+            size_x: 0.2f32,
+            size_y: 0.2f32,
+            size_z: 0.2f32,
+            chunk_starts: Coordinates::at(-1f32, -1f32, -1f32),
+        }
+    }
+
+    #[test]
+    fn create_chunk_entry_static_dynamic_and_final() {
+        assert_eq!(TimedChunkEntry::Static(12), create_chunk_entry(12, None));
+        assert_eq!(
+            TimedChunkEntry::Dynamic(12, 0, 1000),
+            create_chunk_entry(12, Some((0, Some(1000))))
+        );
+        assert_eq!(
+            TimedChunkEntry::Final(12, 19000),
+            create_chunk_entry(12, Some((19000, None)))
+        );
+    }
+
+    #[test]
+    fn calculate_chunk_size_empty() {
+        assert_eq!(
+            (0.1f32, 0.1f32, 0.1f32),
+            calculate_chunk_size(
+                &Coordinates::at(0f32, 0f32, 0f32),
+                &Coordinates::at(0f32, 0f32, 0f32),
+                10,
+            )
+        );
+    }
+
+    #[test]
+    fn calculate_chunk_size_normal_scene() {
+        assert_eq!(
+            (2f32, 2f32, 4f32),
+            calculate_chunk_size(
+                &Coordinates::at(-20f32, 10f32, 10f32),
+                &Coordinates::at(0f32, 30f32, 50f32),
+                10,
+            )
+        );
+    }
+
+    #[test]
+    fn single_chunk_size_empty() {
+        assert_eq!(0.1f32, single_chunk_size(0f32, 0f32, u16::MAX))
+    }
+
+    #[test]
+    fn single_chunk_size_normal() {
+        assert_eq!(2.5f32, single_chunk_size(0f32, 50f32, 20))
+    }
+
+    #[test]
+    fn single_chunk_size_giant() {
+        assert_eq!(20f32, single_chunk_size(-100000f32, 100000f32, 10000))
+    }
+
+    // TODO
+    // add_surface_keyframe_pair_to_chunks
+    // add_sphere_keyframe_pair_to_chunks
+    // add_coordinate_slice_to_chunks
+    // add_sphere_to_chunks
+
+    #[test]
+    fn sphere_chunk_bounds_full_chunk() {
+        let chunks = empty_chunks();
+        assert_eq!(((0, 0, 0), (9, 9, 9)), sphere_chunk_bounds(&Coordinates::at(0f32, 0f32, 0f32), 0.9f32, &chunks));
+    }
+
+    #[test]
+    fn sphere_chunk_bounds_partial() {
+        let chunks = empty_chunks();
+        assert_eq!(((3, 2, 3), (4, 4, 4)), sphere_chunk_bounds(&Coordinates::at(-0.2f32, -0.3f32, -0.2f32), 0.15f32, &chunks));
+    }
+
+    #[test]
+    fn chunk_bounds_full_chunk() {
+        let chunks = empty_chunks();
+        assert_eq!(((0, 0, 0), (9, 9, 9)), chunk_bounds(&[Coordinates::at(-1f32, -1f32, -1f32), Coordinates::at(0.9f32, 0.99f32, 0.999f32)], &chunks));
+    }
+
+    #[test]
+    fn chunk_bounds_partial() {
+        let chunks = empty_chunks();
+        assert_eq!(((6, 5, 6), (9, 6, 6)), chunk_bounds(&[Coordinates::at(0.3f32, 0.2f32, 0.3f32), Coordinates::at(0.9f32, 0.1f32, 0.2f32)], &chunks));
+    }
+
+    #[test]
+    fn lower_bound_coords_to_chunk_index() {
+        let chunks = empty_chunks();
+        assert_eq!((0, 0, 0), coords_to_chunk_index(&Coordinates::at(-1f32, -1f32, -1f32), &chunks))
+    }
+
+    #[test]
+    fn middle_coords_to_chunk_index() {
+        let chunks = empty_chunks();
+        assert_eq!((5, 5, 5), coords_to_chunk_index(&Coordinates::at(0f32, 0f32, 0f32), &chunks))
+    }
+
+    #[test]
+    fn random_coords_to_chunk_index() {
+        let chunks = empty_chunks();
+        assert_eq!((3, 7, 5), coords_to_chunk_index(&Coordinates::at(-0.3f32, 0.4f32, 0.1f32), &chunks))
+    }
+
+    #[test]
+    fn near_upper_bound_coords_to_chunk_index() {
+        let chunks = empty_chunks();
+        assert_eq!((9, 9, 9), coords_to_chunk_index(&Coordinates::at(0.9999f32, 0.9999999f32, 0.9999999f32), &chunks))
+    }
+}
