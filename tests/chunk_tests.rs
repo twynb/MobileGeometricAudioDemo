@@ -200,6 +200,7 @@ fn chunks_static_scene_moving_receiver() {
                 TimedChunkEntry::Dynamic(0, 12, 18),
                 TimedChunkEntry::Dynamic(0, 19, 20),
                 TimedChunkEntry::Dynamic(0, 21, 29),
+                TimedChunkEntry::Final(0, 30),
             ],
         },
     );

@@ -49,7 +49,6 @@ impl<const N: usize> SurfaceKeyframe<N> {
 impl Scene {
     /// Get the maximum bounds of the scene where receivers or objects may be.
     /// If a ray travels outside of these bounds without intersecting with anything, it can be discarded.
-    /// This could also be used to then define chunks?
     pub fn maximum_bounds(&self) -> (Coordinates, Coordinates) {
         let mut min_coords = Coordinates {
             x: f32::MAX,

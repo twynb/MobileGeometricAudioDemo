@@ -12,13 +12,15 @@ use crate::{
 
 /// A single chunk entry. Chunk entries are either static
 /// (i.e. they just hold an object index that stays in this chunk for
-/// the entirety of the scene) or dynamic (i.e. they also hold timestamps
-/// for when the object enters/exits the chunk. The timestamp is inclusive,
+/// the entirety of the scene), dynamic (i.e. they also hold timestamps
+/// for when the object enters/exits the chunk) or final (i.e. they only hold
+/// a timestamp for when the object enters the chunk). The timestamp is inclusive,
 /// meaning that at the last timestamp, the object still is within the chunk).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum TimedChunkEntry {
     Dynamic(usize, u32, u32),
     Static(usize),
+    Final(usize, u32),
 }
 
 /// A chunk within the scene. Chunks hold a vector of [TimedChunkEntry] entries for
@@ -113,7 +115,8 @@ where
     /// };
     ///
     /// chunks.add_surface_at(0, 0, 0, 1, None);
-    /// chunks.add_surface_at(0, 0, 0, 2, Some((10, 4000)));
+    /// chunks.add_surface_at(0, 0, 0, 2, Some((10, Some(4000))));
+    /// chunks.add_surface_at(0, 0, 0, 3, Some((500, None)));
     /// assert_eq!(true, chunks.set_chunks[0]);
     /// let chunk = chunks.chunks.get(&0).unwrap();
     /// assert_eq!(&SceneChunk {
@@ -121,6 +124,7 @@ where
     ///     surfaces: vec![
     ///         TimedChunkEntry::Static(1),
     ///         TimedChunkEntry::Dynamic(2, 10, 4000),
+    ///         TimedChunkEntry::Final(3, 500),
     ///     ]
     /// }, chunk);
     /// ```
@@ -130,7 +134,7 @@ where
         y: u32,
         z: u32,
         index: usize,
-        time: Option<(u32, u32)>,
+        time: Option<(u32, Option<u32>)>,
     ) {
         let key = self.key_for_coordinates(x, y, z);
         self.set_chunks[key as usize] = true;
@@ -171,7 +175,8 @@ where
     /// };
     ///
     /// chunks.add_receiver_at(0, 0, 0, 1, None);
-    /// chunks.add_receiver_at(0, 1, 1, 2, Some((10, 4000)));
+    /// chunks.add_receiver_at(0, 1, 1, 2, Some((10, Some(4000))));
+    /// chunks.add_receiver_at(0, 1, 1, 3, Some((700, None)));
     /// assert_eq!(true, chunks.set_chunks[0]);
     /// let chunk = chunks.chunks.get(&0).unwrap();
     /// assert_eq!(&SceneChunk {
@@ -185,6 +190,7 @@ where
     ///     surfaces: vec![],
     ///     receivers: vec![
     ///         TimedChunkEntry::Dynamic(2, 10, 4000),
+    ///         TimedChunkEntry::Final(3, 700),
     ///     ]
     /// }, chunk);
     /// ```
@@ -194,7 +200,7 @@ where
         y: u32,
         z: u32,
         index: usize,
-        time: Option<(u32, u32)>,
+        time: Option<(u32, Option<u32>)>,
     ) {
         let key = self.key_for_coordinates(x, y, z);
         self.set_chunks[key as usize] = true;
@@ -215,11 +221,13 @@ where
 }
 
 /// Create the TimedChunkEntry for the given index and time.
-fn create_entry(index: usize, time: Option<(u32, u32)>) -> TimedChunkEntry {
-    if time.is_some() {
-        TimedChunkEntry::Dynamic(index, time.unwrap().0, time.unwrap().1)
-    } else {
-        TimedChunkEntry::Static(index)
+fn create_entry(index: usize, time: Option<(u32, Option<u32>)>) -> TimedChunkEntry {
+    match time {
+        Some((enter, exit)) => match exit {
+            Some(exit) => TimedChunkEntry::Dynamic(index, enter, exit),
+            None => TimedChunkEntry::Final(index, enter),
+        },
+        None => TimedChunkEntry::Static(index),
     }
 }
 
@@ -314,8 +322,15 @@ fn add_surface_to_chunks<const N: usize, C: Unsigned>(
         }
         Surface::Keyframes(keyframes) => {
             keyframes.windows(2).for_each(|pair| {
-                add_surface_keyframe_pair_to_chunks(pair[0].clone(), &pair[1], chunks, index)
+                add_surface_keyframe_pair_to_chunks(pair[0].clone(), &pair[1], chunks, index);
             });
+            let last_keyframe = keyframes.last().unwrap();
+            add_coordinate_slice_to_chunks(
+                &last_keyframe.coords,
+                index,
+                chunks,
+                Some((last_keyframe.time, None)),
+            );
         }
     }
 }
@@ -341,6 +356,8 @@ where
             keyframes.windows(2).for_each(|pair| {
                 add_sphere_keyframe_pair_to_chunks(pair[0].clone(), &pair[1], *radius, chunks, 0)
             });
+            let last_keyframe = keyframes.last().unwrap();
+            add_sphere_to_chunks(&last_keyframe.coords, *radius, 0, chunks, Some((last_keyframe.time, None)));
         }
     }
 }
@@ -391,7 +408,7 @@ fn add_surface_keyframe_pair_to_chunks<const N: usize, C: Unsigned>(
             &keyframe_middle,
             index,
             chunks,
-            Some((first.time, time - 1)),
+            Some((first.time, Some(time - 1))),
         );
 
         first = SurfaceKeyframe {
@@ -453,7 +470,7 @@ fn add_sphere_keyframe_pair_to_chunks<C: Unsigned>(
             radius,
             index,
             chunks,
-            Some((first.time, time - 1)),
+            Some((first.time, Some(time - 1))),
         );
 
         first = CoordinateKeyframe {
@@ -470,7 +487,7 @@ fn add_coordinate_slice_to_chunks<C: Unsigned>(
     coordinates: &[Coordinates],
     index: usize,
     chunks: &mut Chunks<C>,
-    time: Option<(u32, u32)>,
+    time: Option<(u32, Option<u32>)>,
 ) where
     C: Mul<C>,
     <C as Mul>::Output: Mul<C>,
@@ -495,7 +512,7 @@ fn add_sphere_to_chunks<C: Unsigned>(
     radius: f32,
     index: usize,
     chunks: &mut Chunks<C>,
-    time: Option<(u32, u32)>,
+    time: Option<(u32, Option<u32>)>,
 ) where
     C: Mul<C>,
     <C as Mul>::Output: Mul<C>,
