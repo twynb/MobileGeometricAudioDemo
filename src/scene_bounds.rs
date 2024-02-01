@@ -144,16 +144,8 @@ mod tests {
         let scene = empty_scene();
         assert_eq!(
             (
-                Coordinates {
-                    x: -0.1f32,
-                    y: -0.1f32,
-                    z: -0.1f32,
-                },
-                Coordinates {
-                    x: 0.1f32,
-                    y: 0.1f32,
-                    z: 0.1f32,
-                }
+                Coordinates::at(-0.1f32, -0.1f32, -0.1f32),
+                Coordinates::at(0.1f32, 0.1f32, 0.1f32)
             ),
             scene.maximum_bounds()
         );
@@ -172,11 +164,7 @@ mod tests {
                     },
                     CoordinateKeyframe {
                         time: 3,
-                        coords: Coordinates {
-                            x: 20f32,
-                            y: 10f32,
-                            z: 34f32,
-                        },
+                        coords: Coordinates::at(20f32, 10f32, 34f32),
                     },
                 ],
                 0.1f32
@@ -192,11 +180,7 @@ mod tests {
                     },
                     CoordinateKeyframe {
                         time: 3,
-                        coords: Coordinates {
-                            x: -10f32,
-                            y: -20f32,
-                            z: -50f32,
-                        },
+                        coords: Coordinates::at(-10f32, -20f32, -50f32),
                     },
                 ],
             ),
@@ -204,16 +188,8 @@ mod tests {
 
         assert_eq!(
             (
-                Coordinates {
-                    x: -0.1f32,
-                    y: -0.1f32,
-                    z: -0.1f32,
-                },
-                Coordinates {
-                    x: 20.1f32,
-                    y: 10.1f32,
-                    z: 34.1f32,
-                }
+                Coordinates::at(-0.1f32, -0.1f32, -0.1f32),
+                Coordinates::at(20.1f32, 10.1f32, 34.1f32)
             ),
             scene.maximum_bounds()
         );
@@ -232,11 +208,7 @@ mod tests {
                     },
                     CoordinateKeyframe {
                         time: 3,
-                        coords: Coordinates {
-                            x: 20f32,
-                            y: 10f32,
-                            z: 34f32,
-                        },
+                        coords: Coordinates::at(20f32, 10f32, 34f32),
                     },
                 ],
                 0.1
@@ -247,41 +219,17 @@ mod tests {
                         SurfaceKeyframe {
                             time: 5,
                             coords: [
-                                Coordinates {
-                                    x: -10f32,
-                                    y: -20f32,
-                                    z: -30f32,
-                                },
-                                Coordinates {
-                                    x: 0f32,
-                                    y: 2f32,
-                                    z: 16f32,
-                                },
-                                Coordinates {
-                                    x: 0f32,
-                                    y: 2f32,
-                                    z: 15f32,
-                                },
+                                Coordinates::at(-10f32, -20f32, -30f32),
+                                Coordinates::at(0f32, 2f32, 16f32),
+                                Coordinates::at(0f32, 2f32, 15f32),
                             ],
                         },
                         SurfaceKeyframe {
                             time: 10,
                             coords: [
-                                Coordinates {
-                                    x: 3f32,
-                                    y: 2f32,
-                                    z: 5f32,
-                                },
-                                Coordinates {
-                                    x: 8f32,
-                                    y: 10f32,
-                                    z: 12f32,
-                                },
-                                Coordinates {
-                                    x: 0f32,
-                                    y: 2f32,
-                                    z: 16f32,
-                                },
+                                Coordinates::at(3f32, 2f32, 5f32),
+                                Coordinates::at(8f32, 10f32, 12f32),
+                                Coordinates::at(0f32, 2f32, 16f32),
                             ],
                         },
                     ],
@@ -291,61 +239,25 @@ mod tests {
                         SurfaceKeyframe {
                             time: 5,
                             coords: [
-                                Coordinates {
-                                    x: 0f32,
-                                    y: 0f32,
-                                    z: 0f32,
-                                },
-                                Coordinates {
-                                    x: 0f32,
-                                    y: 2f32,
-                                    z: 16f32,
-                                },
-                                Coordinates {
-                                    x: 0f32,
-                                    y: 4f32,
-                                    z: 16f32,
-                                },
+                                Coordinates::at(0f32, 0f32, 0f32),
+                                Coordinates::at(0f32, 2f32, 16f32),
+                                Coordinates::at(0f32, 4f32, 16f32),
                             ],
                         },
                         SurfaceKeyframe {
                             time: 10,
                             coords: [
-                                Coordinates {
-                                    x: 3f32,
-                                    y: 2f32,
-                                    z: 5f32,
-                                },
-                                Coordinates {
-                                    x: 8f32,
-                                    y: 10f32,
-                                    z: 12f32,
-                                },
-                                Coordinates {
-                                    x: 0f32,
-                                    y: 4f32,
-                                    z: 16f32,
-                                },
+                                Coordinates::at(3f32, 2f32, 5f32),
+                                Coordinates::at(8f32, 10f32, 12f32),
+                                Coordinates::at(0f32, 4f32, 16f32),
                             ],
                         },
                         SurfaceKeyframe {
                             time: 15,
                             coords: [
-                                Coordinates {
-                                    x: 0f32,
-                                    y: 0f32,
-                                    z: 0f32,
-                                },
-                                Coordinates {
-                                    x: 0f32,
-                                    y: 2f32,
-                                    z: 16f32,
-                                },
-                                Coordinates {
-                                    x: 0f32,
-                                    y: 4f32,
-                                    z: 16f32,
-                                },
+                                Coordinates::at(0f32, 0f32, 0f32),
+                                Coordinates::at(0f32, 2f32, 16f32),
+                                Coordinates::at(0f32, 4f32, 16f32),
                             ],
                         },
                     ],
@@ -361,11 +273,7 @@ mod tests {
                     },
                     CoordinateKeyframe {
                         time: 3,
-                        coords: Coordinates {
-                            x: -10f32,
-                            y: -20f32,
-                            z: -50f32,
-                        },
+                        coords: Coordinates::at(-10f32, -20f32, -50f32),
                     },
                 ],
             ),
@@ -373,16 +281,8 @@ mod tests {
 
         assert_eq!(
             (
-                Coordinates {
-                    x: -10f32,
-                    y: -20f32,
-                    z: -30f32,
-                },
-                Coordinates {
-                    x: 20.1f32,
-                    y: 10.1f32,
-                    z: 34.1f32,
-                }
+                Coordinates::at(-10f32, -20f32, -30f32),
+                Coordinates::at(20.1f32, 10.1f32, 34.1f32)
             ),
             scene.maximum_bounds()
         );

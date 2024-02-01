@@ -7,13 +7,39 @@ pub struct Coordinates {
 }
 
 impl Coordinates {
+    /// Constructor for coordinates at the given position.
+    pub fn at(x: f32, y: f32, z: f32) -> Self {
+        Self {
+            x,
+            y,
+            z
+        }
+    }
+
+    /// Add the given value to all three coordinates.
+    /// Used for padding maximum bounds.
+    /// 
+    /// # Example
+    /// ```
+    /// use demo::scene::Coordinates;
+    /// let mut coords = Coordinates::at(1f32, 2f32,3f32);
+    /// coords.add(3f32);
+    /// assert_eq!(Coordinates::at(4f32, 5f32, 6f32), coords);
+    /// ```
+    pub fn add(&mut self, value: f32) {
+        self.x += value;
+        self.y += value;
+        self.z += value;
+    }
+
     /// Get the minimum coordinates between these coordinates and `other`.
     /// 
     /// # Example
     /// ```
-    /// let coords1 = Coordinates {x: 1f32, y: 2f32, z: 3f32};
-    /// let coords2 = Coordinates {x: 6f32, y: 2f32, z: 1f32};
-    /// assert_eq!(Coordinates {x: 1f32, y: 2f32, z: 1f32}, coords1.min_coords(coords2));
+    /// use demo::scene::Coordinates;
+    /// let coords1 = Coordinates::at(1f32, 2f32,3f32);
+    /// let coords2 = Coordinates::at(6f32, 2f32, 1f32);
+    /// assert_eq!(Coordinates::at(1f32, 2f32, 1f32), coords1.min_coords(&coords2));
     /// ```
     pub fn min_coords(&self, other: &Self) -> Self {
         Self {
@@ -27,9 +53,10 @@ impl Coordinates {
     /// 
     /// # Example
     /// ```
-    /// let coords1 = Coordinates {x: 1f32, y: 2f32, z: 3f32};
-    /// let coords2 = Coordinates {x: 6f32, y: 2f32, z: 1f32};
-    /// assert_eq!(Coordinates {x: 1f32, y: 2f32, z: 1f32}, coords1.min_coords(coords2));
+    /// use demo::scene::Coordinates;
+    /// let coords1 = Coordinates::at(1f32, 2f32, 3f32);
+    /// let coords2 = Coordinates::at(6f32, 2f32, 1f32);
+    /// assert_eq!(Coordinates::at(1f32, 2f32, 1f32), coords1.min_coords(&coords2));
     /// ```
     pub fn max_coords(&self, other: &Self) -> Self {
         Self {
@@ -103,40 +130,16 @@ mod tests {
     use super::Coordinates;
 
     fn test_min_coords() {
-        let coords1 = Coordinates {
-            x: 2f32,
-            y: 6f32,
-            z: 0f32,
-        };
-        let coords2 = Coordinates {
-            x: 5f32,
-            y: -1f32,
-            z: 2f32,
-        };
+        let coords1 = Coordinates::at(2f32, 6f32, 0f32);
+        let coords2 = Coordinates::at(5f32, -1f32, 2f32);
         let result = coords1.min_coords(&coords2);
-        assert_eq!(Coordinates {
-            x: 2f32,
-            y: -1f32,
-            z: 0f32,
-        }, result)
+        assert_eq!(Coordinates::at(2f32, -1f32, 0f32), result)
     }
 
     fn test_max_coords() {
-        let coords1 = Coordinates {
-            x: 2f32,
-            y: 6f32,
-            z: 0f32,
-        };
-        let coords2 = Coordinates {
-            x: 5f32,
-            y: -1f32,
-            z: 2f32,
-        };
+        let coords1 = Coordinates::at(2f32, 6f32, 0f32);
+        let coords2 = Coordinates::at(5f32, -1f32, 2f32);
         let result = coords1.min_coords(&coords2);
-        assert_eq!(Coordinates {
-            x: 5f32,
-            y: 6f32,
-            z: 2f32,
-        }, result)
+        assert_eq!(Coordinates::at(5f32, 6f32, 2f32), result)
     }
 }
