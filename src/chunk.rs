@@ -321,6 +321,15 @@ fn add_surface_to_chunks<const N: usize, C: Unsigned>(
             add_coordinate_slice_to_chunks(coordinates, index, chunks, None);
         }
         Surface::Keyframes(keyframes) => {
+            let first_keyframe = &keyframes[0];
+            if first_keyframe.time != 0 {
+                add_coordinate_slice_to_chunks(
+                    &first_keyframe.coords,
+                    index,
+                    chunks,
+                    Some((0, Some(first_keyframe.time))),
+                );
+            }
             keyframes.windows(2).for_each(|pair| {
                 add_surface_keyframe_pair_to_chunks(pair[0].clone(), &pair[1], chunks, index);
             });
@@ -353,11 +362,27 @@ where
             add_sphere_to_chunks(coordinates, *radius, 0, chunks, None);
         }
         Receiver::Keyframes(keyframes, radius) => {
+            let first_keyframe = &keyframes[0];
+            if first_keyframe.time != 0 {
+                add_sphere_to_chunks(
+                    &first_keyframe.coords,
+                    *radius,
+                    0,
+                    chunks,
+                    Some((0, Some(first_keyframe.time))),
+                );
+            }
             keyframes.windows(2).for_each(|pair| {
                 add_sphere_keyframe_pair_to_chunks(pair[0].clone(), &pair[1], *radius, chunks, 0)
             });
             let last_keyframe = keyframes.last().unwrap();
-            add_sphere_to_chunks(&last_keyframe.coords, *radius, 0, chunks, Some((last_keyframe.time, None)));
+            add_sphere_to_chunks(
+                &last_keyframe.coords,
+                *radius,
+                0,
+                chunks,
+                Some((last_keyframe.time, None)),
+            );
         }
     }
 }
@@ -384,13 +409,13 @@ fn add_surface_keyframe_pair_to_chunks<const N: usize, C: Unsigned>(
     let mut chunks_at_first = chunk_bounds(&first.coords, chunks);
     let mut time = first.time;
     while time < second.time {
-        time = time.average_ceil(&second.time);
+        time = time.average_floor(&second.time);
         let mut keyframe_middle =
             interpolation::interpolate_two_surface_keyframes(&first, &second, time).unwrap();
 
         let mut chunks_at_middle = chunk_bounds(&keyframe_middle, chunks);
         while chunks_at_middle != chunks_at_first {
-            time = time.average_ceil(&first.time);
+            time = time.average_floor(&first.time);
             keyframe_middle =
                 interpolation::interpolate_two_surface_keyframes(&first, &second, time).unwrap();
             chunks_at_middle = chunk_bounds(&keyframe_middle, chunks);
@@ -405,7 +430,7 @@ fn add_surface_keyframe_pair_to_chunks<const N: usize, C: Unsigned>(
         }
 
         add_coordinate_slice_to_chunks(
-            &keyframe_middle,
+            &first.coords,
             index,
             chunks,
             Some((first.time, Some(time - 1))),
@@ -466,7 +491,7 @@ fn add_sphere_keyframe_pair_to_chunks<C: Unsigned>(
         }
 
         add_sphere_to_chunks(
-            &keyframe_middle,
+            &first.coords,
             radius,
             index,
             chunks,

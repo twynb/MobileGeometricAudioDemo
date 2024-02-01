@@ -101,6 +101,7 @@ pub fn interpolate_coordinate_keyframes(
 
 /// Calculate the interpolated coordinate between the keyframes at the given time.
 /// If the time is before or equal to the first keyframe, return its coordinates.
+/// If the time is equal to the second keyframe's time, return its coordinates.
 /// If the time is after the second keyframe, return None.
 /// Otherweise, interpolate.
 ///
@@ -161,6 +162,7 @@ fn interpolate_surface_keyframes<const N: usize>(
 
 /// Calculate the interpolated coordinate between the keyframes at the given time.
 /// If the time is before or equal to the first keyframe, return its coordinates.
+/// If the time is equal to the second keyframe's time, return its coordinates.
 /// If the time is after the second keyframe, return None.
 /// Otherweise, interpolate.
 ///
@@ -175,6 +177,9 @@ pub fn interpolate_two_surface_keyframes<const N: usize>(
 ) -> Option<[Coordinates; N]> {
     if time <= first.time {
         return Some(first.coords);
+    }
+    if time == second.time {
+        return Some(second.coords);
     }
     if time >= first.time && time < second.time {
         let interp_position = calculate_interp_position(first.time, second.time, time);
