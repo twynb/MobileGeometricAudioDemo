@@ -1,4 +1,7 @@
-use crate::scene::{CoordinateKeyframe, Coordinates, Emitter, Receiver, Surface, SurfaceKeyframe};
+use nalgebra::Vector3;
+use num::{Num, NumCast};
+
+use crate::scene::{CoordinateKeyframe, Emitter, Receiver, Surface, SurfaceKeyframe};
 
 pub trait Interpolation {
     /// Get a version of this object at the given time.
@@ -24,16 +27,14 @@ pub trait Interpolation {
 /// # Panics
 /// * If `coords1` is longer than `coords2`
 fn interpolate_coordinate_array<const N: usize>(
-    coords1: &[Coordinates],
-    coords2: &[Coordinates],
+    coords1: &[Vector3<f32>],
+    coords2: &[Vector3<f32>],
     interp_position: f32,
-) -> [Coordinates; N] {
-    let mut result = [Coordinates {
-        ..Default::default()
-    }; N];
+) -> [Vector3<f32>; N] {
+    let mut result: [Vector3<f32>; N] = [Vector3::new(0f32, 0f32, 0f32); N];
 
     for (idx, coord) in coords1.iter().enumerate() {
-        result[idx] = interpolate_coordinates(coord, &coords2[idx], interp_position)
+        result[idx] = interpolate_coordinates(coord, &coords2[idx], interp_position);
     }
 
     result
@@ -46,15 +47,15 @@ fn interpolate_coordinate_array<const N: usize>(
 /// * `coords2`: The second set of coordinates to interpolate between.
 /// * `interp_position`: The interpolation position. Should be between 0 (only use first coordinate) and 1 (only second coordinate).
 fn interpolate_coordinates(
-    coords1: &Coordinates,
-    coords2: &Coordinates,
+    coords1: &Vector3<f32>,
+    coords2: &Vector3<f32>,
     interp_position: f32,
-) -> Coordinates {
-    Coordinates {
-        x: interpolate_single_coordinate(coords1.x, coords2.x, interp_position),
-        y: interpolate_single_coordinate(coords1.y, coords2.y, interp_position),
-        z: interpolate_single_coordinate(coords1.z, coords2.z, interp_position),
-    }
+) -> Vector3<f32> {
+    Vector3::new(
+        interpolate_single_coordinate(coords1.x, coords2.x, interp_position),
+        interpolate_single_coordinate(coords1.y, coords2.y, interp_position),
+        interpolate_single_coordinate(coords1.z, coords2.z, interp_position),
+    )
 }
 
 /// Get the interpolated value, taking the w value into account.
@@ -65,7 +66,6 @@ fn interpolate_coordinates(
 /// * `coord2`: The second coordinate.
 /// * `w2`: `w` for the second coordinate.
 /// * `interp_position`: The interpolation position. Should be between 0 (only use first coordinate) and 1 (only second coordinate).
-#[inline(always)]
 fn interpolate_single_coordinate(coord1: f32, coord2: f32, interp_position: f32) -> f32 {
     coord1 * interp_position + coord2 * (1f32 - interp_position)
 }
@@ -79,10 +79,14 @@ fn interpolate_single_coordinate(coord1: f32, coord2: f32, interp_position: f32)
 /// # Arguments
 /// * `keyframes`: The keyframes to interpolate between. Must be sorted by time.
 /// * `time`: The time.
+///
+/// # Panics
+///
+/// * if `interpolate_two_coordinate_keyframes` fails. This shouldn't be able to happen and can be ignored.
 pub fn interpolate_coordinate_keyframes(
     keyframes: &Vec<CoordinateKeyframe>,
     time: u32,
-) -> Coordinates {
+) -> Vector3<f32> {
     // return out early if we're after the last keyframe anyway
     if time >= keyframes[keyframes.len() - 1].time {
         return keyframes[keyframes.len() - 1].coords;
@@ -91,7 +95,7 @@ pub fn interpolate_coordinate_keyframes(
     for pair in keyframes.windows(2) {
         let result = interpolate_two_coordinate_keyframes(&pair[0], &pair[1], time);
         if let Some(result) = result {
-            return result
+            return result;
         }
     }
 
@@ -109,19 +113,25 @@ pub fn interpolate_coordinate_keyframes(
 /// * `first`: The first keyframe to interpolate.
 /// * `second`: The second keyframe to interpolate.
 /// * `time`: The time.
-pub fn interpolate_two_coordinate_keyframes(
+/// 
+/// # Panics
+/// 
+/// * If u32 can't be cast to T or T can't be cast to f32.
+pub fn interpolate_two_coordinate_keyframes<T: Num + NumCast + PartialOrd + Copy>(
     first: &CoordinateKeyframe,
     second: &CoordinateKeyframe,
-    time: u32,
-) -> Option<Coordinates> {
-    if time <= first.time {
+    time: T,
+) -> Option<Vector3<f32>> {
+    let first_time: T = num::cast(first.time).unwrap();
+    let second_time: T = num::cast(second.time).unwrap();
+    if time <= first_time {
         return Some(first.coords);
     }
-    if time == second.time {
+    if time == second_time {
         return Some(second.coords);
     }
-    if time >= first.time && time < second.time {
-        let interp_position = calculate_interp_position(first.time, second.time, time);
+    if time >= first_time && time < second_time {
+        let interp_position = calculate_interp_position(first_time, second_time, time);
         return Some(interpolate_coordinates(
             &first.coords,
             &second.coords,
@@ -143,7 +153,7 @@ pub fn interpolate_two_coordinate_keyframes(
 fn interpolate_surface_keyframes<const N: usize>(
     keyframes: &Vec<SurfaceKeyframe<N>>,
     time: u32,
-) -> [Coordinates; N] {
+) -> [Vector3<f32>; N] {
     // return out early if we're after the last keyframe, otherwise we'd need to iterate over all the keyframes first
     if time >= keyframes[keyframes.len() - 1].time {
         return keyframes[keyframes.len() - 1].coords;
@@ -152,7 +162,7 @@ fn interpolate_surface_keyframes<const N: usize>(
     for pair in keyframes.windows(2) {
         let result = interpolate_two_surface_keyframes(&pair[0], &pair[1], time);
         if let Some(result) = result {
-            return result
+            return result;
         }
     }
 
@@ -170,19 +180,25 @@ fn interpolate_surface_keyframes<const N: usize>(
 /// * `first`: The first keyframe to interpolate.
 /// * `second`: The second keyframe to interpolate.
 /// * `time`: The time.
-pub fn interpolate_two_surface_keyframes<const N: usize>(
+/// 
+/// # Panics
+/// 
+/// * If u32 can't be cast to T or T can't be cast to f32.
+pub fn interpolate_two_surface_keyframes<const N: usize, T: Num + NumCast + PartialOrd + Copy>(
     first: &SurfaceKeyframe<N>,
     second: &SurfaceKeyframe<N>,
-    time: u32,
-) -> Option<[Coordinates; N]> {
-    if time <= first.time {
+    time: T,
+) -> Option<[Vector3<f32>; N]> {
+    let first_time: T = num::cast(first.time).unwrap();
+    let second_time: T = num::cast(second.time).unwrap();
+    if time <= first_time {
         return Some(first.coords);
     }
-    if time == second.time {
+    if time == second_time {
         return Some(second.coords);
     }
-    if time >= first.time && time < second.time {
-        let interp_position = calculate_interp_position(first.time, second.time, time);
+    if time >= first_time && time < second_time {
+        let interp_position = calculate_interp_position(first_time, second_time, time);
         return Some(interpolate_coordinate_array(
             &first.coords,
             &second.coords,
@@ -200,8 +216,13 @@ pub fn interpolate_two_surface_keyframes<const N: usize>(
 /// * `first_time`: Time of the first keyframe.
 /// * `second_time`: Time of the second keyframe.
 /// * `time`: The current time.
-fn calculate_interp_position(first_time: u32, second_time: u32, time: u32) -> f32 {
-    ((second_time - time) as f32) / ((second_time - first_time) as f32)
+fn calculate_interp_position<T: Num + NumCast + Copy>(
+    first_time: T,
+    second_time: T,
+    time: T,
+) -> f32 {
+    num::cast::<T, f32>(second_time - time).unwrap()
+        / num::cast::<T, f32>(second_time - first_time).unwrap()
 }
 
 impl Interpolation for Emitter {
@@ -241,9 +262,9 @@ impl<const N: usize> Interpolation for Surface<N> {
 
 #[cfg(test)]
 mod tests {
-    use crate::scene::{
-        CoordinateKeyframe, Coordinates, SurfaceKeyframe,
-    };
+    use nalgebra::Vector3;
+
+    use crate::scene::{CoordinateKeyframe, SurfaceKeyframe};
 
     // TODO tests: at_time() for surface
 
@@ -258,23 +279,23 @@ mod tests {
             SurfaceKeyframe {
                 time: 5,
                 coords: [
-                    Coordinates::at(10f32, 20f32, 30f32),
-                    Coordinates::at(0f32, 2f32, 16f32),
+                    Vector3::new(10f32, 20f32, 30f32),
+                    Vector3::new(0f32, 2f32, 16f32),
                 ],
             },
             SurfaceKeyframe {
                 time: 10,
                 coords: [
-                    Coordinates::at(30f32, 20f32, 50f32),
-                    Coordinates::at(8f32, 10f32, 12f32),
+                    Vector3::new(30f32, 20f32, 50f32),
+                    Vector3::new(8f32, 10f32, 12f32),
                 ],
             },
         ];
         let time = 0;
         assert_eq!(
             vec![
-                Coordinates::at(10f32, 20f32, 30f32),
-                Coordinates::at(0f32, 2f32, 16f32),
+                Vector3::new(10f32, 20f32, 30f32),
+                Vector3::new(0f32, 2f32, 16f32),
             ],
             interpolate_surface_keyframes(&keyframes, time)
         )
@@ -286,23 +307,23 @@ mod tests {
             SurfaceKeyframe {
                 time: 5,
                 coords: [
-                    Coordinates::at(10f32, 20f32, 30f32),
-                    Coordinates::at(0f32, 2f32, 16f32),
+                    Vector3::new(10f32, 20f32, 30f32),
+                    Vector3::new(0f32, 2f32, 16f32),
                 ],
             },
             SurfaceKeyframe {
                 time: 10,
                 coords: [
-                    Coordinates::at(30f32, 20f32, 50f32),
-                    Coordinates::at(8f32, 10f32, 12f32),
+                    Vector3::new(30f32, 20f32, 50f32),
+                    Vector3::new(8f32, 10f32, 12f32),
                 ],
             },
         ];
         let time = 7;
         assert_eq!(
             vec![
-                Coordinates::at(18f32, 20f32, 38f32),
-                Coordinates::at(3.1999998f32, 5.2f32, 14.4f32),
+                Vector3::new(18f32, 20f32, 38f32),
+                Vector3::new(3.1999998f32, 5.2f32, 14.4f32),
             ],
             interpolate_surface_keyframes(&keyframes, time)
         )
@@ -314,23 +335,23 @@ mod tests {
             SurfaceKeyframe {
                 time: 5,
                 coords: [
-                    Coordinates::at(10f32, 20f32, 30f32),
-                    Coordinates::at(0f32, 2f32, 16f32),
+                    Vector3::new(10f32, 20f32, 30f32),
+                    Vector3::new(0f32, 2f32, 16f32),
                 ],
             },
             SurfaceKeyframe {
                 time: 10,
                 coords: [
-                    Coordinates::at(30f32, 20f32, 50f32),
-                    Coordinates::at(8f32, 10f32, 12f32),
+                    Vector3::new(30f32, 20f32, 50f32),
+                    Vector3::new(8f32, 10f32, 12f32),
                 ],
             },
         ];
         let time = 15;
         assert_eq!(
             vec![
-                Coordinates::at(30f32, 20f32, 50f32),
-                Coordinates::at(8f32, 10f32, 12f32),
+                Vector3::new(30f32, 20f32, 50f32),
+                Vector3::new(8f32, 10f32, 12f32),
             ],
             interpolate_surface_keyframes(&keyframes, time)
         )
@@ -341,16 +362,16 @@ mod tests {
         let keyframes = vec![
             CoordinateKeyframe {
                 time: 5,
-                coords: Coordinates::at(10f32, 20f32, 30f32),
+                coords: Vector3::new(10f32, 20f32, 30f32),
             },
             CoordinateKeyframe {
                 time: 10,
-                coords: Coordinates::at(30f32, 20f32, 50f32),
+                coords: Vector3::new(30f32, 20f32, 50f32),
             },
         ];
         let time = 0;
         assert_eq!(
-            Coordinates::at(10f32, 20f32, 30f32),
+            Vector3::new(10f32, 20f32, 30f32),
             interpolate_coordinate_keyframes(&keyframes, time)
         )
     }
@@ -360,16 +381,16 @@ mod tests {
         let keyframes = vec![
             CoordinateKeyframe {
                 time: 5,
-                coords: Coordinates::at(30f32, 40f32, 0f32),
+                coords: Vector3::new(30f32, 40f32, 0f32),
             },
             CoordinateKeyframe {
                 time: 10,
-                coords: Coordinates::at(30f32, 20f32, 50f32),
+                coords: Vector3::new(30f32, 20f32, 50f32),
             },
         ];
         let time = 6;
         assert_eq!(
-            Coordinates::at(30f32, 36f32, 9.999999f32),
+            Vector3::new(30f32, 36f32, 9.999999f32),
             interpolate_coordinate_keyframes(&keyframes, time)
         )
     }
@@ -379,26 +400,26 @@ mod tests {
         let keyframes = vec![
             CoordinateKeyframe {
                 time: 5,
-                coords: Coordinates::at(30f32, 40f32, 0f32),
+                coords: Vector3::new(30f32, 40f32, 0f32),
             },
             CoordinateKeyframe {
                 time: 10,
-                coords: Coordinates::at(30f32, 20f32, 50f32),
+                coords: Vector3::new(30f32, 20f32, 50f32),
             },
         ];
         let time = 10;
         assert_eq!(
-            Coordinates::at(30f32, 20f32, 50f32),
+            Vector3::new(30f32, 20f32, 50f32),
             interpolate_coordinate_keyframes(&keyframes, time)
         )
     }
 
     #[test]
     fn interpolate_coordinates_w_1() {
-        let coords1 = Coordinates::at(0.5f32, 3f32, 10f32);
-        let coords2 = Coordinates::at(10f32, 1.6f32, 20f32);
+        let coords1 = Vector3::new(0.5f32, 3f32, 10f32);
+        let coords2 = Vector3::new(10f32, 1.6f32, 20f32);
         let interp_position = 0.25f32;
-        let expected = Coordinates::at(7.625f32, 1.95f32, 17.5f32);
+        let expected = Vector3::new(7.625f32, 1.95f32, 17.5f32);
         assert_eq!(
             expected,
             interpolate_coordinates(&coords1, &coords2, interp_position)
@@ -407,10 +428,10 @@ mod tests {
 
     #[test]
     fn interpolate_coordinates_w_varied() {
-        let coords1 = Coordinates::at(0.5f32, 3f32, 10f32);
-        let coords2 = Coordinates::at(10f32, 1f32, 20f32);
+        let coords1 = Vector3::new(0.5f32, 3f32, 10f32);
+        let coords2 = Vector3::new(10f32, 1f32, 20f32);
         let interp_position = 0.25f32;
-        let expected = Coordinates::at(7.625f32, 1.5f32, 17.5f32);
+        let expected = Vector3::new(7.625f32, 1.5f32, 17.5f32);
         assert_eq!(
             expected,
             interpolate_coordinates(&coords1, &coords2, interp_position)

@@ -1,13 +1,17 @@
 use generic_array::{ArrayLength, GenericArray};
-use num_integer::Average;
+use itertools::Itertools;
+use nalgebra::Vector3;
+use num::integer::Average;
 use std::collections::HashMap;
 use std::ops::Mul;
 use typenum::{operator_aliases::Cube, Unsigned};
 
 use crate::{
     interpolation,
-    scene::{CoordinateKeyframe, Coordinates, Receiver, Scene, Surface, SurfaceKeyframe},
-    scene_bounds, test_utils,
+    scene::{CoordinateKeyframe, Receiver, Scene, Surface, SurfaceKeyframe},
+    scene_bounds,
+    scene_bounds::MaximumBounds,
+    test_utils,
 };
 
 /// A single chunk entry. Chunk entries are either static
@@ -23,12 +27,61 @@ pub enum TimedChunkEntry {
     Final(usize, u32),
 }
 
-/// A chunk within the scene. Chunks hold a vector of [TimedChunkEntry] entries for
+/// A chunk within the scene. Chunks hold a vector of `TimedChunkEntry` entries for
 /// surfaces and receivers that are inside the chunk at some point in the scene.
 #[derive(Clone, Debug)]
+#[allow(clippy::module_name_repetitions)]
 pub struct SceneChunk {
     pub surfaces: Vec<TimedChunkEntry>,
     pub receivers: Vec<TimedChunkEntry>,
+}
+
+impl SceneChunk {
+    /// Get the indices of all objects that are in this chunk at the given time.
+    ///
+    /// For the receivers (the first vector), the index doesn't mean anything as of current
+    /// as there can only be one receiver.
+    fn objects_at_time(&self, time_entry: u32, time_exit: u32) -> (Vec<usize>, Vec<usize>) {
+        (
+            self.receivers
+                .iter()
+                .filter_map(|entry| filter_map_entry_within_time(entry, time_entry, time_exit))
+                .unique()
+                .collect(),
+            self.surfaces
+                .iter()
+                .filter_map(|entry| filter_map_entry_within_time(entry, time_entry, time_exit))
+                .unique()
+                .collect(),
+        )
+    }
+}
+
+/// Filter whether the given entry is within the given
+/// time frame, and return either its index or None
+/// accordingly.
+const fn filter_map_entry_within_time(
+    entry: &TimedChunkEntry,
+    time_entry: u32,
+    time_exit: u32,
+) -> Option<usize> {
+    match entry {
+        TimedChunkEntry::Static(index) => Some(*index),
+        TimedChunkEntry::Final(index, entry) => {
+            if *entry <= time_entry {
+                Some(*index)
+            } else {
+                None
+            }
+        }
+        TimedChunkEntry::Dynamic(index, entry, exit) => {
+            if *entry <= time_exit && *exit >= time_entry {
+                Some(*index)
+            } else {
+                None
+            }
+        }
+    }
 }
 
 impl PartialEq for SceneChunk {
@@ -57,7 +110,7 @@ where
     pub size_y: f32,
     pub size_z: f32,
     /// The coordinates for the lower bound of the first chunk, used to calculate which chunk a coordinate is in.
-    pub chunk_starts: Coordinates,
+    pub chunk_starts: Vector3<f32>,
 }
 
 impl<C: Unsigned> Chunks<C>
@@ -66,16 +119,16 @@ where
     <C as Mul>::Output: Mul<C>,
     <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
 {
-    /// Get the array/map key for the chunk corresponding to the given chunk index.
-    /// The key is calculated as x * C^2 + y * C + z.
-    ///
+    /// TODO: move `coords_to_chunk_index` logic here
+    /// This is currently just an alias for the `coords_to_chunk_index` function.
+    /// 
     /// # Example
     /// ```
     /// use typenum::U10;
     /// use demo::chunk::Chunks;
-    /// use demo::scene::Coordinates;
     /// use std::collections::HashMap;
     /// use generic_array::GenericArray;
+    /// use nalgebra::Vector3;
     ///
     /// let chunks: Chunks<U10> = Chunks {
     ///     set_chunks: GenericArray::default(),
@@ -83,27 +136,83 @@ where
     ///     size_x: 0.1f32,
     ///     size_y: 0.1f32,
     ///     size_z: 0.1f32,
-    ///     chunk_starts: Coordinates::at(0f32, 0f32, 0f32),
+    ///     chunk_starts: Vector3::new(0f32, 0f32, 0f32),
     /// };
-    /// assert_eq!(0, chunks.key_for_coordinates(0, 0, 0));
-    /// assert_eq!(111, chunks.key_for_coordinates(1, 1, 1));
-    /// assert_eq!(999, chunks.key_for_coordinates(9, 9, 9));
+    /// assert_eq!((0, 0, 0), chunks.coords_to_chunk_index(&Vector3::new(0f32, 0f32, 0f32)));
+    /// assert_eq!((1, 1, 1), chunks.coords_to_chunk_index(&Vector3::new(0.1f32, 0.11f32, 0.13f32)));
+    /// assert_eq!((9, 9, 8), chunks.coords_to_chunk_index(&Vector3::new(0.9f32, 0.98f32, 0.82f32)));
     /// ```
-    pub fn key_for_coordinates(&self, x: u32, y: u32, z: u32) -> u32 {
+    pub fn coords_to_chunk_index(&self, coords: &Vector3<f32>) -> (u32, u32, u32) {
+        coords_to_chunk_index(coords, self)
+    }
+
+    /// Get the array/map key for the chunk corresponding to the given coordinates.
+    /// The key is calculated as x * C^2 + y * C + z, with x, y and z being the chunk indices
+    /// corresponding to the coordinates.
+    ///
+    /// # Example
+    /// ```
+    /// use typenum::U10;
+    /// use demo::chunk::Chunks;
+    /// use std::collections::HashMap;
+    /// use generic_array::GenericArray;
+    /// use nalgebra::Vector3;
+    ///
+    /// let chunks: Chunks<U10> = Chunks {
+    ///     set_chunks: GenericArray::default(),
+    ///     chunks: HashMap::new(),
+    ///     size_x: 0.1f32,
+    ///     size_y: 0.1f32,
+    ///     size_z: 0.1f32,
+    ///     chunk_starts: Vector3::new(0f32, 0f32, 0f32),
+    /// };
+    /// assert_eq!(0, chunks.key_for_coordinates(&Vector3::new(0f32, 0f32, 0f32)));
+    /// assert_eq!(111, chunks.key_for_coordinates(&Vector3::new(0.1f32, 0.11f32, 0.13f32)));
+    /// assert_eq!(998, chunks.key_for_coordinates(&Vector3::new(0.9f32, 0.98f32, 0.82f32)));
+    /// ```
+    pub fn key_for_coordinates(&self, coords: &Vector3<f32>) -> u32 {
+        let index = coords_to_chunk_index(coords, self);
+        self.key_for_index(index.0, index.1, index.2)
+    }
+
+    /// Get the array/map key for the chunk corresponding to the given chunk index.
+    /// The key is calculated as x * C^2 + y * C + z.
+    ///
+    /// # Example
+    /// ```
+    /// use typenum::U10;
+    /// use demo::chunk::Chunks;
+    /// use std::collections::HashMap;
+    /// use generic_array::GenericArray;
+    /// use nalgebra::Vector3;
+    ///
+    /// let chunks: Chunks<U10> = Chunks {
+    ///     set_chunks: GenericArray::default(),
+    ///     chunks: HashMap::new(),
+    ///     size_x: 0.1f32,
+    ///     size_y: 0.1f32,
+    ///     size_z: 0.1f32,
+    ///     chunk_starts: Vector3::new(0f32, 0f32, 0f32),
+    /// };
+    /// assert_eq!(0, chunks.key_for_index(0, 0, 0));
+    /// assert_eq!(111, chunks.key_for_index(1, 1, 1));
+    /// assert_eq!(999, chunks.key_for_index(9, 9, 9));
+    /// ```
+    pub fn key_for_index(&self, x: u32, y: u32, z: u32) -> u32 {
         x * C::to_u32() * C::to_u32() + y * C::to_u32() + z
     }
 
     /// Add an object with the given index to the chunk at the given key position.
-    /// This will set the according set_chunks bit to true and, if necessary,
-    /// add the chunk to the chunks map.
+    /// This will set the according `set_chunks` bit to true and, if necessary,
+    /// add the chunk to the `chunks` map.
     ///
     /// # Example
     /// ```
     /// use typenum::U10;
     /// use demo::chunk::{Chunks, SceneChunk, TimedChunkEntry};
-    /// use demo::scene::Coordinates;
     /// use std::collections::HashMap;
     /// use generic_array::GenericArray;
+    /// use nalgebra::Vector3;
     ///
     /// let mut chunks: Chunks<U10> = Chunks {
     ///     set_chunks: GenericArray::default(),
@@ -111,7 +220,7 @@ where
     ///     size_x: 0.1f32,
     ///     size_y: 0.1f32,
     ///     size_z: 0.1f32,
-    ///     chunk_starts: Coordinates::at(0f32, 0f32, 0f32),
+    ///     chunk_starts: Vector3::new(0f32, 0f32, 0f32),
     /// };
     ///
     /// chunks.add_surface_at(0, 0, 0, 1, None);
@@ -136,7 +245,7 @@ where
         index: usize,
         time: Option<(u32, Option<u32>)>,
     ) {
-        let key = self.key_for_coordinates(x, y, z);
+        let key = self.key_for_index(x, y, z);
         self.set_chunks[key as usize] = true;
         let entry = create_chunk_entry(index, time);
         let chunk = self.chunks.get_mut(&key);
@@ -154,16 +263,16 @@ where
     }
 
     /// Add a receiver with the given index to the chunk at the given key position.
-    /// This will set the according set_chunks bit to true and, if necessary,
-    /// add the chunk to the chunks map.
+    /// This will set the according `set_chunks` bit to true and, if necessary,
+    /// add the chunk to the `chunks` map.
     ///
     /// # Example
     /// ```
     /// use typenum::U10;
     /// use demo::chunk::{Chunks, SceneChunk, TimedChunkEntry};
-    /// use demo::scene::Coordinates;
     /// use std::collections::HashMap;
     /// use generic_array::GenericArray;
+    /// use nalgebra::Vector3;
     ///
     /// let mut chunks: Chunks<U10> = Chunks {
     ///     set_chunks: GenericArray::default(),
@@ -171,7 +280,7 @@ where
     ///     size_x: 0.1f32,
     ///     size_y: 0.1f32,
     ///     size_z: 0.1f32,
-    ///     chunk_starts: Coordinates::at(0f32, 0f32, 0f32),
+    ///     chunk_starts: Vector3::new(0f32, 0f32, 0f32),
     /// };
     ///
     /// chunks.add_receiver_at(0, 0, 0, 1, None);
@@ -202,7 +311,7 @@ where
         index: usize,
         time: Option<(u32, Option<u32>)>,
     ) {
-        let key = self.key_for_coordinates(x, y, z);
+        let key = self.key_for_index(x, y, z);
         self.set_chunks[key as usize] = true;
         let entry = create_chunk_entry(index, time);
         let chunk = self.chunks.get_mut(&key);
@@ -218,10 +327,52 @@ where
             );
         }
     }
+
+    /// Check whether the given chunk holds any data by checking the 
+    /// `set_chunks` bit.
+    ///
+    /// # Example
+    /// ```
+    /// use typenum::U10;
+    /// use demo::chunk::{Chunks, SceneChunk, TimedChunkEntry};
+    /// use std::collections::HashMap;
+    /// use generic_array::GenericArray;
+    /// use nalgebra::Vector3;
+    ///
+    /// let mut chunks: Chunks<U10> = Chunks {
+    ///     set_chunks: GenericArray::default(),
+    ///     chunks: HashMap::new(),
+    ///     size_x: 0.1f32,
+    ///     size_y: 0.1f32,
+    ///     size_z: 0.1f32,
+    ///     chunk_starts: Vector3::new(0f32, 0f32, 0f32),
+    /// };
+    ///
+    /// chunks.add_receiver_at(0, 0, 0, 1, None);
+    /// assert_eq!(true, chunks.is_chunk_set(0));
+    /// assert_eq!(false, chunks.is_chunk_set(98));
+    /// ```
+    pub fn is_chunk_set(&self, key: usize) -> bool {
+        self.set_chunks[key]
+    }
+
+    /// Retrieve all receiver and surface indices within the chunk with the given key
+    /// at the given time.
+    pub fn objects_at_key_and_time(
+        &self,
+        key: u32,
+        time_entry: u32,
+        time_exit: u32,
+    ) -> (Vec<usize>, Vec<usize>) {
+        match self.chunks.get(&key) {
+            Some(chunk) => chunk.objects_at_time(time_entry, time_exit),
+            None => (vec![], vec![]),
+        }
+    }
 }
 
-/// Create the TimedChunkEntry for the given index and time.
-fn create_chunk_entry(index: usize, time: Option<(u32, Option<u32>)>) -> TimedChunkEntry {
+/// Create the `TimedChunkEntry` for the given index and time.
+const fn create_chunk_entry(index: usize, time: Option<(u32, Option<u32>)>) -> TimedChunkEntry {
     match time {
         Some((enter, exit)) => match exit {
             Some(exit) => TimedChunkEntry::Dynamic(index, enter, exit),
@@ -253,8 +404,8 @@ impl Scene {
     {
         let number_of_chunks = C::to_i32() as u16;
         let (mut min_bounds, mut max_bounds) = self.maximum_bounds();
-        min_bounds.add(-0.1);
-        max_bounds.add(0.1);
+        min_bounds.add_scalar_mut(-0.1);
+        max_bounds.add_scalar_mut(0.1);
         let (x_chunk_size, y_chunk_size, z_chunk_size) =
             calculate_chunk_size(&min_bounds, &max_bounds, number_of_chunks);
 
@@ -279,8 +430,8 @@ impl Scene {
 /// Calculate the chunk size from the given maximum bounds and
 /// desired number of chunks.
 fn calculate_chunk_size(
-    min_coords: &Coordinates,
-    max_coords: &Coordinates,
+    min_coords: &Vector3<f32>,
+    max_coords: &Vector3<f32>,
     number: u16,
 ) -> (f32, f32, f32) {
     (
@@ -293,7 +444,7 @@ fn calculate_chunk_size(
 /// Calculate the chunk size between the given min/max coordinate. If it is 0,
 /// use 0.1 instead to avoid zero-width chunks. This shouldn't be able to happen.
 fn single_chunk_size(min: f32, max: f32, number: u16) -> f32 {
-    let result = (max - min) / number as f32;
+    let result = (max - min) / f32::from(number);
     if result <= 0f32 {
         return 0.1f32;
     }
@@ -306,7 +457,7 @@ fn single_chunk_size(min: f32, max: f32, number: u16) -> f32 {
 /// box created by its coordinates' bounds, with no time constraint.
 ///
 /// For keyframe surfaces, this will iterate over each pair of keyframes and add them to the according
-/// chunks following the logic from [add_keyframe_pair_to_chunks].
+/// chunks following the logic from `add_keyframe_pair_to_chunks`.
 fn add_surface_to_chunks<const N: usize, C: Unsigned>(
     surface: &Surface<N>,
     chunks: &mut Chunks<C>,
@@ -331,7 +482,7 @@ fn add_surface_to_chunks<const N: usize, C: Unsigned>(
                 );
             }
             keyframes.windows(2).for_each(|pair| {
-                add_surface_keyframe_pair_to_chunks(pair[0].clone(), &pair[1], chunks, index);
+                add_surface_keyframe_pair_to_chunks(pair[0], &pair[1], chunks, index);
             });
             let last_keyframe = keyframes.last().unwrap();
             add_coordinate_slice_to_chunks(
@@ -350,7 +501,7 @@ fn add_surface_to_chunks<const N: usize, C: Unsigned>(
 /// sphere represented by the receiver, with no time constraint.
 ///
 /// For keyframe receivers, this will iterate over each pair of keyframes and add them to the according
-/// chunks following the logic from [add_keyframe_pair_to_chunks].
+/// chunks following the logic from `add_keyframe_pair_to_chunks`.
 fn add_receiver_to_chunks<C: Unsigned>(receiver: &Receiver, chunks: &mut Chunks<C>)
 where
     C: Mul<C>,
@@ -373,7 +524,7 @@ where
                 );
             }
             keyframes.windows(2).for_each(|pair| {
-                add_sphere_keyframe_pair_to_chunks(pair[0].clone(), &pair[1], *radius, chunks, 0)
+                add_sphere_keyframe_pair_to_chunks(pair[0], &pair[1], *radius, chunks, 0);
             });
             let last_keyframe = keyframes.last().unwrap();
             add_sphere_to_chunks(
@@ -509,7 +660,7 @@ fn add_sphere_keyframe_pair_to_chunks<C: Unsigned>(
 /// Add the object described by the given index to all chunks touched by the
 /// box formed by the given coordinate slice's maximum bounds.
 fn add_coordinate_slice_to_chunks<C: Unsigned>(
-    coordinates: &[Coordinates],
+    coordinates: &[Vector3<f32>],
     index: usize,
     chunks: &mut Chunks<C>,
     time: Option<(u32, Option<u32>)>,
@@ -533,7 +684,7 @@ fn add_coordinate_slice_to_chunks<C: Unsigned>(
 /// Add the object described by the given index to all chunks touched by the
 /// box formed by the given coordinate slice's maximum bounds.
 fn add_sphere_to_chunks<C: Unsigned>(
-    coordinates: &Coordinates,
+    coordinates: &Vector3<f32>,
     radius: f32,
     index: usize,
     chunks: &mut Chunks<C>,
@@ -558,7 +709,7 @@ fn add_sphere_to_chunks<C: Unsigned>(
 /// Calculate the box formed around the given sphere
 /// bounds, represented as its boundaries' chunk indices.
 fn sphere_chunk_bounds<C: Unsigned>(
-    coordinates: &Coordinates,
+    coordinates: &Vector3<f32>,
     radius: f32,
     chunks: &Chunks<C>,
 ) -> ((u32, u32, u32), (u32, u32, u32))
@@ -568,9 +719,9 @@ where
     <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
 {
     let mut minimum_bounds = *coordinates;
-    minimum_bounds.add(-radius);
+    minimum_bounds.add_scalar_mut(-radius);
     let mut maximum_bounds = *coordinates;
-    maximum_bounds.add(radius);
+    maximum_bounds.add_scalar_mut(radius);
     (
         coords_to_chunk_index(&minimum_bounds, chunks),
         coords_to_chunk_index(&maximum_bounds, chunks),
@@ -580,7 +731,7 @@ where
 /// Calculate the box formed by the given coordinates' maximum
 /// bounds, represented as its boundaries' chunk indices.
 fn chunk_bounds<C: Unsigned>(
-    coordinates: &[Coordinates],
+    coordinates: &[Vector3<f32>],
     chunks: &Chunks<C>,
 ) -> ((u32, u32, u32), (u32, u32, u32))
 where
@@ -596,7 +747,7 @@ where
 }
 
 /// Convert the given coordinates into their related chunk indices.
-fn coords_to_chunk_index<C: Unsigned>(coords: &Coordinates, chunks: &Chunks<C>) -> (u32, u32, u32)
+fn coords_to_chunk_index<C: Unsigned>(coords: &Vector3<f32>, chunks: &Chunks<C>) -> (u32, u32, u32)
 where
     C: Mul<C>,
     <C as Mul>::Output: Mul<C>,
@@ -614,11 +765,12 @@ mod tests {
     use std::collections::HashMap;
 
     use generic_array::GenericArray;
+    use nalgebra::Vector3;
     use typenum::U10;
 
-    use crate::{
-        chunk::{chunk_bounds, coords_to_chunk_index, create_chunk_entry, single_chunk_size, sphere_chunk_bounds, TimedChunkEntry},
-        scene::Coordinates,
+    use crate::chunk::{
+        chunk_bounds, coords_to_chunk_index, create_chunk_entry, single_chunk_size,
+        sphere_chunk_bounds, TimedChunkEntry,
     };
 
     use super::{calculate_chunk_size, Chunks};
@@ -630,7 +782,7 @@ mod tests {
             size_x: 0.2f32,
             size_y: 0.2f32,
             size_z: 0.2f32,
-            chunk_starts: Coordinates::at(-1f32, -1f32, -1f32),
+            chunk_starts: Vector3::new(-1f32, -1f32, -1f32),
         }
     }
 
@@ -652,8 +804,8 @@ mod tests {
         assert_eq!(
             (0.1f32, 0.1f32, 0.1f32),
             calculate_chunk_size(
-                &Coordinates::at(0f32, 0f32, 0f32),
-                &Coordinates::at(0f32, 0f32, 0f32),
+                &Vector3::new(0f32, 0f32, 0f32),
+                &Vector3::new(0f32, 0f32, 0f32),
                 10,
             )
         );
@@ -664,8 +816,8 @@ mod tests {
         assert_eq!(
             (2f32, 2f32, 4f32),
             calculate_chunk_size(
-                &Coordinates::at(-20f32, 10f32, 10f32),
-                &Coordinates::at(0f32, 30f32, 50f32),
+                &Vector3::new(-20f32, 10f32, 10f32),
+                &Vector3::new(0f32, 30f32, 50f32),
                 10,
             )
         );
@@ -673,17 +825,17 @@ mod tests {
 
     #[test]
     fn single_chunk_size_empty() {
-        assert_eq!(0.1f32, single_chunk_size(0f32, 0f32, u16::MAX))
+        assert_eq!(0.1f32, single_chunk_size(0f32, 0f32, u16::MAX));
     }
 
     #[test]
     fn single_chunk_size_normal() {
-        assert_eq!(2.5f32, single_chunk_size(0f32, 50f32, 20))
+        assert_eq!(2.5f32, single_chunk_size(0f32, 50f32, 20));
     }
 
     #[test]
     fn single_chunk_size_giant() {
-        assert_eq!(20f32, single_chunk_size(-100000f32, 100000f32, 10000))
+        assert_eq!(20f32, single_chunk_size(-100_000f32, 100_000f32, 10000));
     }
 
     // TODO
@@ -695,48 +847,87 @@ mod tests {
     #[test]
     fn sphere_chunk_bounds_full_chunk() {
         let chunks = empty_chunks();
-        assert_eq!(((0, 0, 0), (9, 9, 9)), sphere_chunk_bounds(&Coordinates::at(0f32, 0f32, 0f32), 0.9f32, &chunks));
+        assert_eq!(
+            ((0, 0, 0), (9, 9, 9)),
+            sphere_chunk_bounds(&Vector3::new(0f32, 0f32, 0f32), 0.9f32, &chunks)
+        );
     }
 
     #[test]
     fn sphere_chunk_bounds_partial() {
         let chunks = empty_chunks();
-        assert_eq!(((3, 2, 3), (4, 4, 4)), sphere_chunk_bounds(&Coordinates::at(-0.2f32, -0.3f32, -0.2f32), 0.15f32, &chunks));
+        assert_eq!(
+            ((3, 2, 3), (4, 4, 4)),
+            sphere_chunk_bounds(&Vector3::new(-0.2f32, -0.3f32, -0.2f32), 0.15f32, &chunks)
+        );
     }
 
     #[test]
     fn chunk_bounds_full_chunk() {
         let chunks = empty_chunks();
-        assert_eq!(((0, 0, 0), (9, 9, 9)), chunk_bounds(&[Coordinates::at(-1f32, -1f32, -1f32), Coordinates::at(0.9f32, 0.99f32, 0.999f32)], &chunks));
+        assert_eq!(
+            ((0, 0, 0), (9, 9, 9)),
+            chunk_bounds(
+                &[
+                    Vector3::new(-1f32, -1f32, -1f32),
+                    Vector3::new(0.9f32, 0.99f32, 0.999f32)
+                ],
+                &chunks
+            )
+        );
     }
 
     #[test]
     fn chunk_bounds_partial() {
         let chunks = empty_chunks();
-        assert_eq!(((6, 5, 6), (9, 6, 6)), chunk_bounds(&[Coordinates::at(0.3f32, 0.2f32, 0.3f32), Coordinates::at(0.9f32, 0.1f32, 0.2f32)], &chunks));
+        assert_eq!(
+            ((6, 5, 6), (9, 6, 6)),
+            chunk_bounds(
+                &[
+                    Vector3::new(0.3f32, 0.2f32, 0.3f32),
+                    Vector3::new(0.9f32, 0.1f32, 0.2f32)
+                ],
+                &chunks
+            )
+        );
     }
 
     #[test]
     fn lower_bound_coords_to_chunk_index() {
         let chunks = empty_chunks();
-        assert_eq!((0, 0, 0), coords_to_chunk_index(&Coordinates::at(-1f32, -1f32, -1f32), &chunks))
+        assert_eq!(
+            (0, 0, 0),
+            coords_to_chunk_index(&Vector3::new(-1f32, -1f32, -1f32), &chunks)
+        )
     }
 
     #[test]
     fn middle_coords_to_chunk_index() {
         let chunks = empty_chunks();
-        assert_eq!((5, 5, 5), coords_to_chunk_index(&Coordinates::at(0f32, 0f32, 0f32), &chunks))
+        assert_eq!(
+            (5, 5, 5),
+            coords_to_chunk_index(&Vector3::new(0f32, 0f32, 0f32), &chunks)
+        )
     }
 
     #[test]
     fn random_coords_to_chunk_index() {
         let chunks = empty_chunks();
-        assert_eq!((3, 7, 5), coords_to_chunk_index(&Coordinates::at(-0.3f32, 0.4f32, 0.1f32), &chunks))
+        assert_eq!(
+            (3, 7, 5),
+            coords_to_chunk_index(&Vector3::new(-0.3f32, 0.4f32, 0.1f32), &chunks)
+        )
     }
 
     #[test]
     fn near_upper_bound_coords_to_chunk_index() {
         let chunks = empty_chunks();
-        assert_eq!((9, 9, 9), coords_to_chunk_index(&Coordinates::at(0.9999f32, 0.9999999f32, 0.9999999f32), &chunks))
+        assert_eq!(
+            (9, 9, 9),
+            coords_to_chunk_index(
+                &Vector3::new(0.9999f32, 0.9999999f32, 0.9999999f32),
+                &chunks
+            )
+        )
     }
 }

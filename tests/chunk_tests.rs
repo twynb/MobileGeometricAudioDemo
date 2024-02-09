@@ -4,29 +4,23 @@ use generic_array::GenericArray;
 
 use demo::{
     chunk::{Chunks, SceneChunk, TimedChunkEntry},
-    scene::{CoordinateKeyframe, Coordinates, Emitter, Receiver, Scene, Surface, SurfaceKeyframe},
+    scene::{CoordinateKeyframe, Emitter, Receiver, Scene, Surface, SurfaceKeyframe},
     scene_builder,
 };
+use nalgebra::Vector3;
 
 fn empty_scene() -> Scene {
     Scene {
-        receiver: Receiver::Interpolated(
-            Coordinates {
-                ..Default::default()
-            },
-            0.1,
-            0,
-        ),
+        receiver: Receiver::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0.1, 0),
         surfaces: vec![],
         emitter: Emitter::Keyframes(vec![CoordinateKeyframe {
             time: 0,
-            coords: Coordinates {
-                ..Default::default()
-            },
+            coords: Vector3::new(0f32, 0f32, 0f32),
         }]),
     }
 }
 
+#[allow(clippy::all)]
 fn assert_set_chunks_equal(
     set_chunks: &GenericArray<bool, typenum::U1000>,
     result: &Chunks<typenum::U10>,
@@ -34,23 +28,23 @@ fn assert_set_chunks_equal(
     for idx in 0..1000 {
         assert_eq!(
             set_chunks[idx], result.set_chunks[idx],
-            "mismatch in set_chunks at index {}",
-            idx
+            "mismatch in set_chunks at index {idx}",
         );
     }
 }
 
+#[allow(clippy::all)]
 fn assert_chunks_equal(chunks: &HashMap<u32, SceneChunk>, result: &Chunks<typenum::U10>) {
     for idx in 0..1000 {
         assert_eq!(
             chunks.get(&idx),
             result.chunks.get(&idx),
-            "mismatch in chunks at index {}",
-            idx
+            "mismatch in chunks at index {idx}",
         );
     }
 }
 
+#[allow(clippy::all)]
 #[test]
 fn chunks_empty_scene() {
     let scene = empty_scene();
@@ -59,10 +53,7 @@ fn chunks_empty_scene() {
         (0.04f32, 0.04f32, 0.04f32),
         (result.size_x, result.size_y, result.size_z)
     );
-    assert_eq!(
-        Coordinates::at(-0.2f32, -0.2f32, -0.2f32),
-        result.chunk_starts
-    );
+    assert_eq!(Vector3::new(-0.2f32, -0.2f32, -0.2f32), result.chunk_starts);
 
     let mut set_chunks: GenericArray<bool, typenum::U1000> = GenericArray::default();
     for x in 2..8 {
@@ -97,11 +88,13 @@ fn chunks_empty_scene() {
         size_x: 0.04,
         size_y: 0.04,
         size_z: 0.04,
-        chunk_starts: Coordinates::at(-0.2f32, -0.2f32, -0.2f32),
+        chunk_starts: Vector3::new(-0.2f32, -0.2f32, -0.2f32),
     };
     assert_eq!(expected, result);
 }
 
+#[allow(clippy::too_many_lines)]
+#[allow(clippy::all)]
 #[test]
 fn chunks_static_scene_moving_receiver() {
     let scene = Scene {
@@ -109,29 +102,24 @@ fn chunks_static_scene_moving_receiver() {
             vec![
                 CoordinateKeyframe {
                     time: 10,
-                    coords: Coordinates::at(-1f32, -1f32, -1f32),
+                    coords: Vector3::new(-1f32, -1f32, -1f32),
                 },
                 CoordinateKeyframe {
                     time: 20,
-                    coords: Coordinates::at(1f32, -1f32, 0f32),
+                    coords: Vector3::new(1f32, -1f32, 0f32),
                 },
                 CoordinateKeyframe {
                     time: 40,
-                    coords: Coordinates::at(1f32, 1f32, 1f32),
+                    coords: Vector3::new(1f32, 1f32, 1f32),
                 },
             ],
             0.1,
         ),
         surfaces: scene_builder::static_cube(
-            Coordinates::at(-10f32, -10f32, -10f32),
-            Coordinates::at(10f32, 10f32, 10f32),
+            Vector3::new(-10f32, -10f32, -10f32),
+            Vector3::new(10f32, 10f32, 10f32),
         ),
-        emitter: Emitter::Interpolated(
-            Coordinates {
-                ..Default::default()
-            },
-            0,
-        ),
+        emitter: Emitter::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0),
     };
     let result = scene.chunks::<typenum::U10>();
     assert_eq!(
@@ -139,7 +127,7 @@ fn chunks_static_scene_moving_receiver() {
         (result.size_x, result.size_y, result.size_z)
     );
     assert_eq!(
-        Coordinates::at(-10.1f32, -10.1f32, -10.1f32),
+        Vector3::new(-10.1f32, -10.1f32, -10.1f32),
         result.chunk_starts
     );
 
@@ -214,7 +202,7 @@ fn chunks_static_scene_moving_receiver() {
         size_x: 2.02,
         size_y: 2.02,
         size_z: 2.02,
-        chunk_starts: Coordinates::at(-10.1f32, -10.1f32, -10.1f32),
+        chunk_starts: Vector3::new(-10.1f32, -10.1f32, -10.1f32),
     };
 
     for x in 0..10 {
@@ -245,27 +233,29 @@ fn chunks_static_scene_moving_receiver() {
     assert_eq!(expected, result);
 }
 
+#[allow(clippy::too_many_lines)]
+#[allow(clippy::all)]
 #[test]
 fn chunks_moving_scene_and_receiver() {
     let mut surfaces = scene_builder::static_cube(
-        Coordinates::at(-10f32, -10f32, -10f32),
-        Coordinates::at(10f32, 10f32, 10f32),
+        Vector3::new(-10f32, -10f32, -10f32),
+        Vector3::new(10f32, 10f32, 10f32),
     );
     surfaces.push(Surface::Keyframes(vec![
         SurfaceKeyframe {
             time: 20,
             coords: [
-                Coordinates::at(2f32, 2f32, 2f32),
-                Coordinates::at(2f32, 2f32, 3f32),
-                Coordinates::at(2f32, 3f32, 2f32),
+                Vector3::new(2f32, 2f32, 2f32),
+                Vector3::new(2f32, 2f32, 3f32),
+                Vector3::new(2f32, 3f32, 2f32),
             ],
         },
         SurfaceKeyframe {
             time: 500,
             coords: [
-                Coordinates::at(6f32, 6f32, 6f32),
-                Coordinates::at(6f32, 6f32, 7f32),
-                Coordinates::at(6f32, 7f32, 6f32),
+                Vector3::new(6f32, 6f32, 6f32),
+                Vector3::new(6f32, 6f32, 7f32),
+                Vector3::new(6f32, 7f32, 6f32),
             ],
         },
     ]));
@@ -274,26 +264,21 @@ fn chunks_moving_scene_and_receiver() {
             vec![
                 CoordinateKeyframe {
                     time: 10,
-                    coords: Coordinates::at(-1f32, -1f32, -1f32),
+                    coords: Vector3::new(-1f32, -1f32, -1f32),
                 },
                 CoordinateKeyframe {
                     time: 20,
-                    coords: Coordinates::at(1f32, -1f32, 0f32),
+                    coords: Vector3::new(1f32, -1f32, 0f32),
                 },
                 CoordinateKeyframe {
                     time: 40,
-                    coords: Coordinates::at(1f32, 1f32, 1f32),
+                    coords: Vector3::new(1f32, 1f32, 1f32),
                 },
             ],
             0.1,
         ),
         surfaces,
-        emitter: Emitter::Interpolated(
-            Coordinates {
-                ..Default::default()
-            },
-            0,
-        ),
+        emitter: Emitter::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0),
     };
     let result = scene.chunks::<typenum::U10>();
     assert_eq!(
@@ -301,7 +286,7 @@ fn chunks_moving_scene_and_receiver() {
         (result.size_x, result.size_y, result.size_z)
     );
     assert_eq!(
-        Coordinates::at(-10.1f32, -10.1f32, -10.1f32),
+        Vector3::new(-10.1f32, -10.1f32, -10.1f32),
         result.chunk_starts
     );
 
@@ -388,7 +373,7 @@ fn chunks_moving_scene_and_receiver() {
         size_x: 2.02,
         size_y: 2.02,
         size_z: 2.02,
-        chunk_starts: Coordinates::at(-10.1f32, -10.1f32, -10.1f32),
+        chunk_starts: Vector3::new(-10.1f32, -10.1f32, -10.1f32),
     };
 
     for x in 0..10 {

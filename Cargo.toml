@@ -14,12 +14,23 @@ path = "src/lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
 enum_glob_use = "deny"
-pedantic = "deny"
+missing_const_for_fn = "deny"
+# potentially add these back in the future
+return_self_not_must_use = "allow"
+must_use_candidate = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+cast_possible_wrap = "allow"
+cast_possible_truncation = "allow"
+unreadable_literal = "allow"
 
 [dependencies]
-array-init = "2.1.0"
+approx = "0.5.1"
 generic-array = "1.0.0"
-itertools = "0.12.0"
-num-integer = "0.1.45"
+itertools = "0.12.1"
+nalgebra = "0.32.3"
+num = "0.4.1"
 typenum = "1.17.0"

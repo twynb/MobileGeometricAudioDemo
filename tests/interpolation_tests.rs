@@ -1,37 +1,22 @@
-use demo::scene::{CoordinateKeyframe, Coordinates, Emitter, Receiver, Surface, SurfaceKeyframe};
 use demo::interpolation::Interpolation;
+use demo::scene::{CoordinateKeyframe, Emitter, Receiver, Surface, SurfaceKeyframe};
+use nalgebra::Vector3;
 
 #[test]
-fn interpolate_object() {
+fn interpolate_surface() {
     let object = Surface::Keyframes(vec![
         SurfaceKeyframe {
             time: 5,
             coords: [
-                Coordinates {
-                    x: 10f32,
-                    y: 20f32,
-                    z: 30f32,
-                },
-                Coordinates {
-                    x: 0f32,
-                    y: 2f32,
-                    z: 16f32,
-                },
+                Vector3::new(10f32, 20f32, 30f32),
+                Vector3::new(0f32, 2f32, 16f32),
             ],
         },
         SurfaceKeyframe {
             time: 10,
             coords: [
-                Coordinates {
-                    x: 30f32,
-                    y: 20f32,
-                    z: 50f32,
-                },
-                Coordinates {
-                    x: 8f32,
-                    y: 10f32,
-                    z: 12f32,
-                },
+                Vector3::new(30f32, 20f32, 50f32),
+                Vector3::new(8f32, 10f32, 12f32),
             ],
         },
     ]);
@@ -39,21 +24,13 @@ fn interpolate_object() {
     assert_eq!(
         Surface::Interpolated(
             [
-                Coordinates {
-                    x: 18f32,
-                    y: 20f32,
-                    z: 38f32,
-                },
-                Coordinates {
-                    x: 3.1999998f32,
-                    y: 5.2f32,
-                    z: 14.4f32,
-                },
+                Vector3::new(18f32, 20f32, 38f32),
+                Vector3::new(3.1999998f32, 5.2f32, 14.4f32),
             ],
             7
         ),
         result
-    )
+    );
 }
 
 #[test]
@@ -62,36 +39,20 @@ fn interpolate_receiver() {
         vec![
             CoordinateKeyframe {
                 time: 5,
-                coords: Coordinates {
-                    x: 30f32,
-                    y: 40f32,
-                    z: 0f32,
-                },
+                coords: Vector3::new(30f32, 40f32, 0f32),
             },
             CoordinateKeyframe {
                 time: 10,
-                coords: Coordinates {
-                    x: 30f32,
-                    y: 20f32,
-                    z: 50f32,
-                },
+                coords: Vector3::new(30f32, 20f32, 50f32),
             },
         ],
         0.1f32,
     );
     let result = receiver.at_time(6);
     assert_eq!(
-        Receiver::Interpolated(
-            Coordinates {
-                x: 30f32,
-                y: 36f32,
-                z: 9.999999f32,
-            },
-            0.1f32,
-            6
-        ),
+        Receiver::Interpolated(Vector3::new(30f32, 36f32, 9.999999f32), 0.1f32, 6),
         result
-    )
+    );
 }
 
 #[test]
@@ -99,31 +60,16 @@ fn interpolate_emitter() {
     let emitter = Emitter::Keyframes(vec![
         CoordinateKeyframe {
             time: 5,
-            coords: Coordinates {
-                x: 30f32,
-                y: 40f32,
-                z: 0f32,
-            },
+            coords: Vector3::new(30f32, 40f32, 0f32),
         },
         CoordinateKeyframe {
             time: 10,
-            coords: Coordinates {
-                x: 30f32,
-                y: 20f32,
-                z: 50f32,
-            },
+            coords: Vector3::new(30f32, 20f32, 50f32),
         },
     ]);
     let result = emitter.at_time(6);
     assert_eq!(
-        Emitter::Interpolated(
-            Coordinates {
-                x: 30f32,
-                y: 36f32,
-                z: 9.999999f32,
-            },
-            6
-        ),
+        Emitter::Interpolated(Vector3::new(30f32, 36f32, 9.999999f32,), 6),
         result
-    )
+    );
 }
