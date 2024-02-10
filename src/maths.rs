@@ -115,16 +115,23 @@ pub(crate) fn is_point_inside_triangle(point: &Vector3<f32>, triangle: &[Vector3
 
 /// Get the barycentric coordinates for the given point in the given vector.
 /// This assumes that the point is within the same plane as the triangle.
+/// based on [this solution from Karadeniz Technical University](https://ceng2.ktu.edu.tr/~cakir/files/grafikler/Texture_Mapping.pdf)
 pub(crate) fn barycentric_coords(
     point: &Vector3<f32>,
     triangle: &[Vector3<f32>; 3],
 ) -> (f32, f32, f32) {
-    let area = (triangle[1] - triangle[0])
-        .cross(&(triangle[2] - triangle[0]))
-        .norm();
-    let alpha = (triangle[1] - point).cross(&(triangle[2] - point)).norm() / area;
-    let beta = (triangle[2] - point).cross(&(triangle[0] - point)).norm() / area;
-    let gamma = 1f32 - alpha - beta;
+    let v0 = triangle[1] - triangle[0];
+    let v1 = triangle[2] - triangle[0];
+    let v2 = point - triangle[0];
+    let d00 = v0.dot(&v0);
+    let d01 = v0.dot(&v1);
+    let d11 = v1.dot(&v1);
+    let d20 = v2.dot(&v0);
+    let d21 = v2.dot(&v1);
+    let denom = d00 * d11 - d01 * d01;
+    let beta = (d11 * d20 - d01 * d21) / denom;
+    let gamma = (d00 * d21 - d01 * d20) / denom;
+    let alpha = 1f32 - beta - gamma;
     (alpha, beta, gamma)
 }
 
@@ -224,14 +231,14 @@ mod tests {
     }
 
     #[test]
-    fn origin_is_outside_triangle_over_it() {
+    fn origin_is_inside_triangle_over_it() {
         let point = Vector3::new(0f32, 0f32, 0f32);
         let triangle: [Vector3<f32>; 3] = [
             Vector3::new(-1f32, -1f32, 1f32),
             Vector3::new(1f32, -1f32, 1f32),
             Vector3::new(0f32, 1f32, 1f32),
         ];
-        assert_eq!(false, is_point_inside_triangle(&point, &triangle))
+        assert_eq!(true, is_point_inside_triangle(&point, &triangle))
     }
 
     #[test]
@@ -258,7 +265,7 @@ mod tests {
 
     #[test]
     fn point_outside_origin_is_inside_triangle_around_it() {
-        let point = Vector3::new(2.1f32, 0.3f32, 0f32);
+        let point = Vector3::new(2.1f32, -0.3f32, 0f32);
         let triangle: [Vector3<f32>; 3] = [
             Vector3::new(1f32, -1f32, 0f32),
             Vector3::new(3f32, -1f32, 0f32),
