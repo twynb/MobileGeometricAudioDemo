@@ -109,12 +109,14 @@ pub(crate) fn solve_linear_equation(a1: f32, a0: f32) -> Vec<f32> {
 /// Check whether the given point is within the triangle described by the given vector.
 /// This is done by calculating the barycentric coordinates and checking whether they
 /// indicate the point is within the triangle.
+/// Note that this does not check whether the point is inside the triangle's plane
+/// and instead projects it into it!
 pub(crate) fn is_point_inside_triangle(point: &Vector3<f32>, triangle: &[Vector3<f32>; 3]) -> bool {
     barycentric_coords_inside_triangle(barycentric_coords(point, triangle))
 }
 
 /// Get the barycentric coordinates for the given point in the given vector.
-/// This assumes that the point is within the same plane as the triangle.
+/// This will project the point into the same plane as the triangle.
 /// based on [this solution from Karadeniz Technical University](https://ceng2.ktu.edu.tr/~cakir/files/grafikler/Texture_Mapping.pdf)
 pub(crate) fn barycentric_coords(
     point: &Vector3<f32>,
