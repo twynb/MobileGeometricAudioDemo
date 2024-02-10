@@ -37,11 +37,11 @@ impl RealCubeRoot for Complex<f32> {
 /// Solve the given cubic equation a3*x^3 + a2*x^2 + a1*x^2 + a0 = 0 and return all real roots.
 /// Results with imaginary parts are discarded.
 /// This uses the General Cubic Formula as described in Abramowitz/Stegun's Handbook of Mathematical Functions.
-/// 
+///
 /// TODO: Optimise by returning a [Option<f32>; 3] rather than a Vec<f32>
 pub(crate) fn solve_cubic_equation(a3: f32, mut a2: f32, mut a1: f32, mut a0: f32) -> Vec<f32> {
     if a3 == 0f32 {
-        return vec![];
+        return solve_quadratic_equation(a2, a1, a0);
     }
     a2 /= a3;
     a1 /= a3;
@@ -78,11 +78,11 @@ pub(crate) fn solve_cubic_equation(a3: f32, mut a2: f32, mut a1: f32, mut a0: f3
 /// Solve the given quadratic equation a2 * x^2 + a1 * x + a0 = 0 and return all real roots.
 /// Results with imaginary parts are discarded.
 /// This uses the general quadratic formula as described in Abramowitz/Stegun's Handbook of Mathematical Functions.
-/// 
+///
 /// TODO: Optimise by returning a [Option<f32>; 2] rather than a Vec<f32>
 pub(crate) fn solve_quadratic_equation(a2: f32, a1: f32, a0: f32) -> Vec<f32> {
     if a2 == 0f32 {
-        return vec![];
+        return solve_linear_equation(a1, a0);
     }
     let q = a1.powi(2) - 4f32 * a2 * a0;
     if q < 0f32 {
@@ -93,6 +93,16 @@ pub(crate) fn solve_quadratic_equation(a2: f32, a1: f32, a0: f32) -> Vec<f32> {
         let first_part = -0.5f32 * a1 / a2;
         let q_mul = q.sqrt() * 0.5 / a2;
         vec![first_part + q_mul, first_part - q_mul]
+    }
+}
+
+/// Solve the given linear equation a1 * x + a0 = 0 and return a vec
+/// holding the single result, or nothing if a1 is 0
+pub(crate) fn solve_linear_equation(a1: f32, a0: f32) -> Vec<f32> {
+    if a1 == 0f32 {
+        vec![]
+    } else {
+        vec![-a0 / a1]
     }
 }
 
@@ -212,7 +222,6 @@ mod tests {
         ];
         assert_eq!(true, is_point_inside_triangle(&point, &triangle))
     }
-
 
     #[test]
     fn origin_is_outside_triangle_over_it() {
