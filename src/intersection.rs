@@ -326,7 +326,7 @@ fn receiver_polynomial_parameters(
         ray_origin_to_center_first.norm_squared() * delta_time.powi(2)
             + 2f32 * second_time * delta_time * ray_origin_to_center_first.dot(&diff_center)
             + second_time.powi(2) * diff_center.norm_squared()
-            - radius.powi(2), // d_0
+            - radius.powi(2) * delta_time.powi(2), // d_0
     )
 }
 
