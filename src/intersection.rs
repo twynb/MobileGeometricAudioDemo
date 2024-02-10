@@ -102,6 +102,7 @@ fn surface_polynomial_parameters(
     keyframe_second: &SurfaceKeyframe<3>,
 ) -> (f32, f32, f32, f32) {
     let (g2, g1, g0) = surface_cross_product_parameters(keyframe_first, keyframe_second);
+    let ray_time = ray.time as f32; // t_0
     let velocity = ray.velocity * ray.direction.into_inner();
     let delta_time = (keyframe_second.time - keyframe_first.time) as f32;
     let diff_point_1 = keyframe_first.coords[0] - keyframe_second.coords[0];
@@ -111,15 +112,16 @@ fn surface_polynomial_parameters(
     let g0_dot_diff_point_1 = g0.dot(&diff_point_1);
     (
         g2.dot(&velocity) - g2_dot_diff_point_1 / delta_time, // d_3
-        g2.dot(&ray.origin) - g2_dot_diff_point_1
+        g2.dot(&ray.origin) - g2_dot_diff_point_1 - ray_time * g2.dot(&velocity)
             + g2_dot_diff_point_1 * (&second_div_delta_time)
             + g1.dot(&velocity)
             - g1_dot_diff_point_1 / delta_time, // d_2
-        g1.dot(&ray.origin) - g1_dot_diff_point_1
+        g1.dot(&ray.origin) - g1_dot_diff_point_1 - ray_time * g1.dot(&velocity)
             + g1_dot_diff_point_1 * (&second_div_delta_time)
             + g0.dot(&velocity)
             - g0_dot_diff_point_1 / delta_time, // d_1
-        g0.dot(&ray.origin) - g0_dot_diff_point_1 + g0_dot_diff_point_1 * (&second_div_delta_time), // d_0
+        g0.dot(&ray.origin) - ray_time * g1.dot(&velocity) - g0_dot_diff_point_1
+            + g0_dot_diff_point_1 * (&second_div_delta_time), // d_0
     )
 }
 
@@ -251,7 +253,7 @@ pub fn intersect_ray_and_receiver(
                     return None;
                 }
                 if let Some((time, coords)) =
-                    intersection_check_receiver_keyframes(ray, &pair[0], &pair[1], *radius)
+                    intersection_check_receiver_keyframes(ray, &pair[0], &pair[1], *radius, std::cmp::max(time_entry, pair[0].time), std::cmp::min(time_exit, pair[1].time))
                 {
                     return Some((time, coords));
                 }
@@ -277,13 +279,16 @@ fn intersection_check_receiver_keyframes(
     keyframe_first: &CoordinateKeyframe,
     keyframe_second: &CoordinateKeyframe,
     radius: f32,
+    time_entry: u32,
+    time_exit: u32
 ) -> Option<(u32, Vector3<f32>)> {
     let (d2, d1, d0) = receiver_polynomial_parameters(ray, keyframe_first, keyframe_second, radius);
+    println!("{d2} {d1} {d0}");
     let intersections = maths::solve_quadratic_equation(d2, d1, d0);
     let mut intersection: Option<f32> = None;
     for intersection_time in intersections {
-        if (intersection_time.floor() as u32) < keyframe_first.time
-            || intersection_time.ceil() as u32 > keyframe_second.time
+        if (intersection_time.floor() as u32) < time_entry
+            || intersection_time.ceil() as u32 > time_exit
         {
             continue;
         }
@@ -311,20 +316,25 @@ fn receiver_polynomial_parameters(
     keyframe_second: &CoordinateKeyframe,
     radius: f32,
 ) -> (f32, f32, f32) {
+    let ray_time = ray.time as f32;
     let velocity = ray.velocity * ray.direction.into_inner();
     let delta_time = (keyframe_second.time - keyframe_first.time) as f32;
     let second_time = keyframe_second.time as f32;
     let diff_center = keyframe_first.coords - keyframe_second.coords;
     let ray_origin_to_center_first = ray.origin - keyframe_first.coords;
+    let origin_minus_center_minus_t0_v = ray_origin_to_center_first - ray_time * velocity;
     (
         velocity.norm_squared() * delta_time.powi(2) + diff_center.norm_squared()
             - 2f32 * delta_time * velocity.dot(&diff_center), // d_2
         2f32 * (delta_time.powi(2) * ray_origin_to_center_first.dot(&velocity)
-            - delta_time * ray_origin_to_center_first.dot(&diff_center)
+            - ray_time * velocity.norm_squared()
+            - delta_time * origin_minus_center_minus_t0_v.dot(&diff_center)
             + second_time * delta_time * velocity.dot(&diff_center)
             - second_time * diff_center.norm_squared()), // d_1
-        ray_origin_to_center_first.norm_squared() * delta_time.powi(2)
-            + 2f32 * second_time * delta_time * ray_origin_to_center_first.dot(&diff_center)
+        (ray_origin_to_center_first.norm_squared() + 2f32 * ray_time * -1f32 * ray_origin_to_center_first.dot(&velocity)
+            + ray_time.powi(2) * velocity.norm_squared())
+            * delta_time.powi(2)
+            + 2f32 * second_time * delta_time * origin_minus_center_minus_t0_v.dot(&diff_center)
             + second_time.powi(2) * diff_center.norm_squared()
             - radius.powi(2) * delta_time.powi(2), // d_0
     )
@@ -353,7 +363,7 @@ fn intersection_check_receiver_coordinates(
         return None;
     }
     let time_angle_to_result = (radius.powi(2) - time_coords_to_angle.powi(2)).abs().sqrt();
-    let intersection_time = time_origin_to_angle - time_angle_to_result;
+    let intersection_time = time_origin_to_angle - time_angle_to_result + ray.time as f32;
 
     if (intersection_time.trunc() as u32) < time_entry
         || intersection_time.ceil() as u32 > time_exit
