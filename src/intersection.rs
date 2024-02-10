@@ -32,12 +32,13 @@ pub fn intersect_ray_and_surface(
                 if pair[0].time > time_exit {
                     return None;
                 }
-                if let Some((time, coords)) =
-                    intersection_check_surface_keyframes(ray, &pair[0], &pair[1],
+                if let Some((time, coords)) = intersection_check_surface_keyframes(
+                    ray,
+                    &pair[0],
+                    &pair[1],
                     std::cmp::max(time_entry, pair[0].time),
                     std::cmp::min(time_exit, pair[1].time),
-                    )
-                {
+                ) {
                     return Some((time, coords));
                 }
             }
@@ -61,7 +62,7 @@ fn intersection_check_surface_keyframes(
     keyframe_first: &SurfaceKeyframe<3>,
     keyframe_second: &SurfaceKeyframe<3>,
     time_entry: u32,
-    time_exit: u32
+    time_exit: u32,
 ) -> Option<(u32, Vector3<f32>)> {
     let (d3, d2, d1, d0) = surface_polynomial_parameters(ray, keyframe_first, keyframe_second);
 
@@ -121,7 +122,7 @@ fn surface_polynomial_parameters(
             + g1_dot_diff_point_1 * (&second_div_delta_time)
             + g0.dot(&velocity)
             - g0_dot_diff_point_1 / delta_time, // d_1
-        g0.dot(&ray.origin) - ray_time * g1.dot(&velocity) - g0.dot(&keyframe_second.coords[0])
+        g0.dot(&ray.origin) - ray_time * g0.dot(&velocity) - g0.dot(&keyframe_second.coords[0])
             + g0_dot_diff_point_1 * (&second_div_delta_time), // d_0
     )
 }

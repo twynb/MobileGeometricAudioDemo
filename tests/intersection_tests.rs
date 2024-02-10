@@ -4,7 +4,7 @@ use demo::ray::Ray;
 use demo::scene::{CoordinateKeyframe, Receiver, Surface, SurfaceKeyframe};
 use nalgebra::{Unit, Vector3};
 
-fn assert_intersection_equal(
+fn assert_intersection_equals(
     expected: Option<(u32, Vector3<f32>)>,
     result: Option<(u32, Vector3<f32>)>,
 ) {
@@ -42,12 +42,12 @@ fn test_intersect_static_receiver() {
         velocity: 1f32,
     };
 
-    assert_intersection_equal(
+    assert_intersection_equals(
         Some((11, Vector3::new(9.95549, 9.910981, 1.0089018f32))),
         intersect_ray_and_receiver(&hitting_ray, &receiver, 0, 100),
     );
 
-    assert_intersection_equal(
+    assert_intersection_equals(
         None,
         intersect_ray_and_receiver(&hitting_ray, &receiver, 1, 10),
     );
@@ -60,7 +60,7 @@ fn test_intersect_static_receiver() {
         velocity: 1f32,
     };
 
-    assert_intersection_equal(
+    assert_intersection_equals(
         Some((10, Vector3::new(10.1f32, 10f32, 1f32))),
         intersect_ray_and_receiver(&narrowly_hitting_ray, &receiver, 0, 100),
     );
@@ -73,7 +73,7 @@ fn test_intersect_static_receiver() {
         velocity: 1f32,
     };
 
-    assert_intersection_equal(
+    assert_intersection_equals(
         None,
         intersect_ray_and_receiver(&narrowly_missing_ray, &receiver, 0, 100),
     );
@@ -86,7 +86,7 @@ fn test_intersect_static_receiver() {
         velocity: 1f32,
     };
 
-    assert_intersection_equal(
+    assert_intersection_equals(
         None,
         intersect_ray_and_receiver(&missing_ray, &receiver, 0, 100),
     )
@@ -116,7 +116,7 @@ fn test_intersect_moving_receiver() {
         velocity: 1f32,
     };
 
-    assert_intersection_equal(
+    assert_intersection_equals(
         Some((10, Vector3::new(-4.93, 0.0, 0.0))),
         intersect_ray_and_receiver(&hitting_ray, &receiver_moving_towards_emitter, 0, 100),
     );
@@ -143,7 +143,7 @@ fn test_intersect_moving_receiver() {
         velocity: 1f32,
     };
 
-    assert_intersection_equal(
+    assert_intersection_equals(
         Some((10, Vector3::new(10.1f32, 10f32, 1f32))),
         intersect_ray_and_receiver(&narrowly_hitting_ray, &receiver, 0, 100),
     );
@@ -156,7 +156,7 @@ fn test_intersect_moving_receiver() {
         velocity: 1f32,
     };
 
-    assert_intersection_equal(
+    assert_intersection_equals(
         None,
         intersect_ray_and_receiver(&narrowly_missing_ray, &receiver, 0, 100),
     );
@@ -169,7 +169,7 @@ fn test_intersect_moving_receiver() {
         velocity: 1f32,
     };
 
-    assert_intersection_equal(
+    assert_intersection_equals(
         None,
         intersect_ray_and_receiver(&missing_ray, &receiver, 0, 100),
     );
@@ -182,7 +182,7 @@ fn test_intersect_moving_receiver() {
         velocity: 0.5f32,
     };
 
-    assert_intersection_equal(
+    assert_intersection_equals(
         None,
         intersect_ray_and_receiver(&too_late_ray, &receiver, 2, 100),
     );
@@ -195,7 +195,7 @@ fn test_intersect_moving_receiver() {
         velocity: 1f32,
     };
 
-    assert_intersection_equal(
+    assert_intersection_equals(
         Some((34, Vector3::new(19.93f32, -0.07f32, 1f32))),
         intersect_ray_and_receiver(&late_hitting_ray, &receiver, 0, 100),
     );
@@ -220,12 +220,12 @@ fn test_intersect_static_surface() {
         velocity: 1f32,
     };
 
-    assert_intersection_equal(
+    assert_intersection_equals(
         Some((7, Vector3::new(5f32, 3f32, 2f32))),
         intersect_ray_and_surface(&hitting_ray, &surface, 0, 100),
     );
 
-    assert_intersection_equal(
+    assert_intersection_equals(
         None,
         intersect_ray_and_surface(&hitting_ray, &surface, 1, 5),
     );
@@ -238,7 +238,7 @@ fn test_intersect_static_surface() {
         velocity: 1f32,
     };
 
-    assert_intersection_equal(
+    assert_intersection_equals(
         Some((3, Vector3::new(0f32, 3f32, 0f32))),
         intersect_ray_and_surface(&narrowly_hitting_ray, &surface, 0, 100),
     );
@@ -251,7 +251,7 @@ fn test_intersect_static_surface() {
         velocity: 1f32,
     };
 
-    assert_intersection_equal(
+    assert_intersection_equals(
         None,
         intersect_ray_and_surface(&narrowly_missing_ray, &surface, 0, 100),
     );
@@ -264,7 +264,7 @@ fn test_intersect_static_surface() {
         velocity: 1f32,
     };
 
-    assert_intersection_equal(
+    assert_intersection_equals(
         None,
         intersect_ray_and_surface(&missing_ray, &surface, 0, 100),
     )
@@ -307,14 +307,27 @@ fn test_intersect_moving_surface() {
         velocity: 1f32,
     };
 
-    assert_intersection_equal(
+    assert_intersection_equals(
         Some((10, Vector3::new(1f32, 3f32, 2f32))),
         intersect_ray_and_surface(&hitting_ray, &surface, 0, 100),
     );
 
-    assert_intersection_equal(
+    assert_intersection_equals(
         None,
         intersect_ray_and_surface(&hitting_ray, &surface, 1, 5),
+    );
+
+    let hitting_ray_with_later_start: Ray = Ray {
+        direction: Unit::new_normalize(Vector3::new(0f32, 10f32, 0f32)),
+        origin: Vector3::new(1f32, -2f32, 2f32),
+        energy: 1f32,
+        time: 5,
+        velocity: 1f32,
+    };
+    
+    assert_intersection_equals(
+        Some((10, Vector3::new(1f32, 3f32, 2f32))),
+        intersect_ray_and_surface(&hitting_ray_with_later_start, &surface, 0, 100),
     );
 
     /*

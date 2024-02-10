@@ -63,7 +63,7 @@ impl Ray {
     /// * If u32 cannot be cast to T, or T cannot be cast to f32
     pub fn coords_at_time<T: Num + NumCast>(&self, time: T) -> Vector3<f32> {
         let factor: f32 = num::cast(time - num::cast(self.time).unwrap()).unwrap();
-        let direction = self.direction.into_inner() * factor;
+        let direction = self.direction.into_inner() * factor * self.velocity;
         self.origin + direction
     }
 
