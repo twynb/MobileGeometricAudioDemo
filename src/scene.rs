@@ -1,5 +1,7 @@
 use nalgebra::Vector3;
 
+use crate::materials::Material;
+
 /// Keyframe for a single set of coordinates.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct CoordinateKeyframe {
@@ -33,10 +35,30 @@ pub struct SurfaceKeyframe<const N: usize> {
 
 /// Surface in the scene.
 /// Either has its separate keyframes (sorted by time) or a single interpolated keyframe at a given time.
+/// Also contains the surface's material.
 #[derive(Clone, PartialEq, Debug)]
 pub enum Surface<const N: usize> {
-    Keyframes(Vec<SurfaceKeyframe<N>>),
-    Interpolated([Vector3<f32>; N], u32),
+    Keyframes(Vec<SurfaceKeyframe<N>>, Material),
+    Interpolated([Vector3<f32>; N], u32, Material),
+}
+
+impl<const N: usize> Surface<N> {
+    /// Calculate this surface's normal.
+    /// 
+    /// # Panics
+    /// 
+    /// * When attempting to calculate the normal on a non-interpolated surface.
+    pub fn normal(&self) -> Vector3<f32> {
+        match self {
+            Surface::Interpolated(coords, _time, _material) => {
+                let cross = (coords[1] - coords[0]).cross(&(coords[2] - coords[0]));
+                cross / cross.norm()
+            }
+            Surface::Keyframes(_, _material) => {
+                panic!("Normals can only be calculated for interpolated surfaces!")
+            }
+        }
+    }
 }
 
 /// The full scene.

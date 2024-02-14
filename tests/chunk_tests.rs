@@ -3,9 +3,7 @@ use std::collections::HashMap;
 use generic_array::GenericArray;
 
 use demo::{
-    chunk::{Chunks, SceneChunk, TimedChunkEntry},
-    scene::{CoordinateKeyframe, Emitter, Receiver, Scene, Surface, SurfaceKeyframe},
-    scene_builder,
+    chunk::{Chunks, SceneChunk, TimedChunkEntry}, materials::MATERIAL_CONCRETE_WALL, scene::{CoordinateKeyframe, Emitter, Receiver, Scene, Surface, SurfaceKeyframe}, scene_builder
 };
 use nalgebra::Vector3;
 
@@ -258,7 +256,7 @@ fn chunks_moving_scene_and_receiver() {
                 Vector3::new(6f32, 7f32, 6f32),
             ],
         },
-    ]));
+    ], MATERIAL_CONCRETE_WALL));
     let scene = Scene {
         receiver: Receiver::Keyframes(
             vec![

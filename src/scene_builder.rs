@@ -1,8 +1,9 @@
 use nalgebra::Vector3;
 
-use crate::scene::Surface;
+use crate::{materials::MATERIAL_CONCRETE_WALL, scene::Surface};
 
 #[must_use]
+#[allow(clippy::too_many_lines)]
 pub fn static_cube(bottom_left: Vector3<f32>, top_right: Vector3<f32>) -> Vec<Surface<3>> {
     vec![
         // left
@@ -13,6 +14,7 @@ pub fn static_cube(bottom_left: Vector3<f32>, top_right: Vector3<f32>) -> Vec<Su
                 Vector3::new(bottom_left.x, top_right.y, bottom_left.z),
             ],
             0,
+            MATERIAL_CONCRETE_WALL,
         ),
         Surface::Interpolated(
             [
@@ -21,6 +23,7 @@ pub fn static_cube(bottom_left: Vector3<f32>, top_right: Vector3<f32>) -> Vec<Su
                 Vector3::new(bottom_left.x, top_right.y, bottom_left.z),
             ],
             0,
+            MATERIAL_CONCRETE_WALL,
         ),
         // front
         Surface::Interpolated(
@@ -30,6 +33,7 @@ pub fn static_cube(bottom_left: Vector3<f32>, top_right: Vector3<f32>) -> Vec<Su
                 Vector3::new(bottom_left.x, bottom_left.y, top_right.z),
             ],
             0,
+            MATERIAL_CONCRETE_WALL,
         ),
         Surface::Interpolated(
             [
@@ -38,6 +42,7 @@ pub fn static_cube(bottom_left: Vector3<f32>, top_right: Vector3<f32>) -> Vec<Su
                 Vector3::new(bottom_left.x, bottom_left.y, top_right.z),
             ],
             0,
+            MATERIAL_CONCRETE_WALL,
         ),
         // right
         Surface::Interpolated(
@@ -47,6 +52,7 @@ pub fn static_cube(bottom_left: Vector3<f32>, top_right: Vector3<f32>) -> Vec<Su
                 Vector3::new(top_right.x, top_right.y, bottom_left.z),
             ],
             0,
+            MATERIAL_CONCRETE_WALL,
         ),
         Surface::Interpolated(
             [
@@ -55,6 +61,7 @@ pub fn static_cube(bottom_left: Vector3<f32>, top_right: Vector3<f32>) -> Vec<Su
                 Vector3::new(top_right.x, top_right.y, bottom_left.z),
             ],
             0,
+            MATERIAL_CONCRETE_WALL,
         ),
         // back
         Surface::Interpolated(
@@ -64,6 +71,7 @@ pub fn static_cube(bottom_left: Vector3<f32>, top_right: Vector3<f32>) -> Vec<Su
                 Vector3::new(bottom_left.x, top_right.y, top_right.z),
             ],
             0,
+            MATERIAL_CONCRETE_WALL,
         ),
         Surface::Interpolated(
             [
@@ -72,6 +80,7 @@ pub fn static_cube(bottom_left: Vector3<f32>, top_right: Vector3<f32>) -> Vec<Su
                 Vector3::new(bottom_left.x, top_right.y, top_right.z),
             ],
             0,
+            MATERIAL_CONCRETE_WALL,
         ),
         // bottom
         Surface::Interpolated(
@@ -81,6 +90,7 @@ pub fn static_cube(bottom_left: Vector3<f32>, top_right: Vector3<f32>) -> Vec<Su
                 Vector3::new(bottom_left.x, top_right.y, bottom_left.z),
             ],
             0,
+            MATERIAL_CONCRETE_WALL,
         ),
         Surface::Interpolated(
             [
@@ -89,6 +99,7 @@ pub fn static_cube(bottom_left: Vector3<f32>, top_right: Vector3<f32>) -> Vec<Su
                 Vector3::new(bottom_left.x, top_right.y, bottom_left.z),
             ],
             0,
+            MATERIAL_CONCRETE_WALL,
         ),
         // top
         Surface::Interpolated(
@@ -98,6 +109,7 @@ pub fn static_cube(bottom_left: Vector3<f32>, top_right: Vector3<f32>) -> Vec<Su
                 Vector3::new(bottom_left.x, top_right.y, top_right.z),
             ],
             0,
+            MATERIAL_CONCRETE_WALL,
         ),
         Surface::Interpolated(
             [
@@ -106,6 +118,7 @@ pub fn static_cube(bottom_left: Vector3<f32>, top_right: Vector3<f32>) -> Vec<Su
                 Vector3::new(bottom_left.x, top_right.y, top_right.z),
             ],
             0,
+            MATERIAL_CONCRETE_WALL,
         ),
     ]
 }

@@ -252,9 +252,9 @@ impl Interpolation for Receiver {
 impl<const N: usize> Interpolation for Surface<N> {
     fn at_time(&self, time: u32) -> Self {
         match self {
-            Surface::Interpolated(_keyframes, _time) => self.clone(),
-            Surface::Keyframes(keyframes) => {
-                Surface::Interpolated(interpolate_surface_keyframes(keyframes, time), time)
+            Surface::Interpolated(_keyframes, _time, _material) => self.clone(),
+            Surface::Keyframes(keyframes, material) => {
+                Surface::Interpolated(interpolate_surface_keyframes(keyframes, time), time, *material)
             }
         }
     }

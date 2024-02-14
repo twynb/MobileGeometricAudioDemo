@@ -56,12 +56,12 @@ impl MaximumBounds for Scene {
         let mut max_coords: Vector3<f32> = Vector3::new(f32::MIN, f32::MIN, f32::MIN);
         for surface in &self.surfaces {
             match surface {
-                Surface::Interpolated(coordinates, _time) => {
+                Surface::Interpolated(coordinates, _time, _material) => {
                     for coord in coordinates {
                         update_maximum_bounds(coord, &mut min_coords, &mut max_coords, None);
                     }
                 }
-                Surface::Keyframes(keyframes) => {
+                Surface::Keyframes(keyframes, _material) => {
                     for keyframe in keyframes {
                         for coord in &keyframe.coords {
                             update_maximum_bounds(coord, &mut min_coords, &mut max_coords, None);
@@ -106,9 +106,9 @@ mod tests {
     use nalgebra::Vector3;
 
     use super::MaximumBounds;
-    use crate::scene::{
+    use crate::{materials::MATERIAL_CONCRETE_WALL, scene::{
         CoordinateKeyframe, Emitter, Receiver, Scene, Surface, SurfaceKeyframe,
-    };
+    }};
 
     fn empty_scene() -> Scene {
         Scene {
@@ -211,7 +211,7 @@ mod tests {
                             Vector3::new(0f32, 2f32, 16f32),
                         ],
                     },
-                ]),
+                ], MATERIAL_CONCRETE_WALL),
                 Surface::Keyframes(vec![
                     SurfaceKeyframe {
                         time: 5,
@@ -237,7 +237,7 @@ mod tests {
                             Vector3::new(0f32, 4f32, 16f32),
                         ],
                     },
-                ]),
+                ], MATERIAL_CONCRETE_WALL),
             ],
             emitter: Emitter::Keyframes(vec![
                 CoordinateKeyframe {

@@ -1,4 +1,5 @@
 use demo::interpolation::Interpolation;
+use demo::materials::MATERIAL_CONCRETE_WALL;
 use demo::scene::{CoordinateKeyframe, Emitter, Receiver, Surface, SurfaceKeyframe};
 use nalgebra::Vector3;
 
@@ -19,7 +20,7 @@ fn interpolate_surface() {
                 Vector3::new(8f32, 10f32, 12f32),
             ],
         },
-    ]);
+    ], MATERIAL_CONCRETE_WALL);
     let result = object.at_time(7);
     assert_eq!(
         Surface::Interpolated(
@@ -27,7 +28,8 @@ fn interpolate_surface() {
                 Vector3::new(18f32, 20f32, 38f32),
                 Vector3::new(3.1999998f32, 5.2f32, 14.4f32),
             ],
-            7
+            7,
+            MATERIAL_CONCRETE_WALL
         ),
         result
     );

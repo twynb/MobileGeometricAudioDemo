@@ -5,10 +5,14 @@ use nalgebra::{base::Unit, Vector3};
 use num::{Num, NumCast};
 use typenum::Unsigned;
 
-use crate::{intersection, SceneData, DEFAULT_SAMPLE_RATE};
+use crate::{
+    interpolation::Interpolation, intersection, scene::Surface, SceneData, DEFAULT_SAMPLE_RATE,
+};
 
 /// The normal speed of sound in air at 20 °C, in m/s.
 pub const DEFAULT_PROPAGATION_SPEED: f32 = 343.2;
+/// The threshold below which rays get discarded.
+const ENERGY_THRESHOLD: f32 = 0.05;
 
 /// The result after checking for an intersection.
 /// * `Found`: found an intersecting surface.
@@ -31,7 +35,10 @@ enum IntersectionCheckResult {
 impl IntersectionCheckResult {
     /// Check whether this `IntersectionCheckResult` is of type "Found".
     const fn is_found(&self) -> bool {
-        matches!(self, IntersectionCheckResult::Found(_is_recv, _index, _time, _coords))
+        matches!(
+            self,
+            IntersectionCheckResult::Found(_is_recv, _index, _time, _coords)
+        )
     }
 }
 
@@ -57,9 +64,9 @@ pub struct Ray {
 
 impl Ray {
     /// Get the coordinates this ray is at at the given time.
-    /// 
+    ///
     /// # Panics
-    /// 
+    ///
     /// * If u32 cannot be cast to T, or T cannot be cast to f32
     pub fn coords_at_time<T: Num + NumCast>(&self, time: T) -> Vector3<f32> {
         let factor: f32 = num::cast(time - num::cast(self.time).unwrap()).unwrap();
@@ -88,7 +95,7 @@ impl Ray {
         velocity: f32,
         sample_rate: f32,
         scene_data: &SceneData<C>,
-    ) -> Option<(f32, u32)>
+    ) -> Vec<(f32, u32)>
     where
         C: Mul<C>,
         <C as Mul>::Output: Mul<C>,
@@ -106,22 +113,69 @@ impl Ray {
     }
 
     /// Bounce this ray through the given scene.
-    fn bounce<C: Unsigned>(&mut self, scene_data: &SceneData<C>) -> Option<(f32, u32)>
+    fn bounce<C: Unsigned>(&mut self, scene_data: &SceneData<C>) -> Vec<(f32, u32)>
     where
         C: Mul<C>,
         <C as Mul>::Output: Mul<C>,
         <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
     {
-        let mut chunk_traversal_data = self.init_chunk_traversal_data(scene_data);
-        match self.traverse(scene_data, &mut chunk_traversal_data) {
-            None => None,
-            Some((is_receiver, index, time, coords)) => {
-                if is_receiver {
-                    return Some((self.energy, time));
+        let mut allow_receiver = true;
+        let mut result = vec![];
+        while self.energy < ENERGY_THRESHOLD {
+            let mut chunk_traversal_data = self.init_chunk_traversal_data(scene_data);
+            match self.traverse(scene_data, &mut chunk_traversal_data, allow_receiver) {
+                None => return result,
+                Some((is_receiver, index, time, coords)) => {
+                    if is_receiver {
+                        result.push((self.energy, time));
+                        allow_receiver = false;
+                    } else {
+                        allow_receiver = true;
+                        self.bounce_from_intersection(scene_data, time, coords, index);
+                    }
                 }
-                todo!("TODO");
             }
         }
+        result
+    }
+
+    fn bounce_from_intersection<C: Unsigned>(
+        &mut self,
+        scene_data: &SceneData<C>,
+        time: u32,
+        coords: Vector3<f32>,
+        index: usize,
+    ) where
+        C: Mul<C>,
+        <C as Mul>::Output: Mul<C>,
+        <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
+    {
+        let Surface::Interpolated(surface_coords, _time, material) =
+            scene_data.scene.surfaces[index].at_time(time)
+        else {
+            panic!("at_time() somehow returned a non-interpolated surface. This shouldn't happen.")
+        };
+        let mut new_direction = self.direction.into_inner();
+        if material.is_bounce_diffuse() {
+        // TODO refraction
+            todo!()
+        } else {
+            let point = nalgebra::geometry::Point3::new(
+                surface_coords[2].x,
+                surface_coords[2].y,
+                surface_coords[2].z,
+            );
+            let reflect = nalgebra::geometry::Reflection3::new_containing_point(
+                Unit::new_normalize(surface_coords[1] - surface_coords[0]),
+                &point,
+            );
+            reflect.reflect(&mut new_direction);
+        }
+
+        self.time = time;
+        self.origin = coords;
+        self.direction = Unit::new_normalize(new_direction);
+        self.energy *= material.absorption_coefficient;
     }
 
     /// Traverse through a scene chunk by chunk.
@@ -134,6 +188,7 @@ impl Ray {
         &self,
         scene_data: &SceneData<C>,
         chunk_traversal_data: &mut ChunkTraversalData,
+        allow_receiver: bool,
     ) -> Option<(bool, usize, u32, Vector3<f32>)>
     where
         C: Mul<C>,
@@ -149,6 +204,7 @@ impl Ray {
                     &mut chunk_traversal_data.last_time,
                     &mut chunk_traversal_data.x,
                     scene_data,
+                    allow_receiver,
                 ) {
                     IntersectionCheckResult::Found(is_receiver, index, time, coords) => {
                         return Some((is_receiver, index, time, coords))
@@ -164,6 +220,7 @@ impl Ray {
                     &mut chunk_traversal_data.last_time,
                     &mut chunk_traversal_data.y,
                     scene_data,
+                    allow_receiver,
                 ) {
                     IntersectionCheckResult::Found(is_receiver, index, time, coords) => {
                         return Some((is_receiver, index, time, coords))
@@ -177,6 +234,7 @@ impl Ray {
                     &mut chunk_traversal_data.last_time,
                     &mut chunk_traversal_data.z,
                     scene_data,
+                    allow_receiver,
                 ) {
                     IntersectionCheckResult::Found(is_receiver, index, time, coords) => {
                         return Some((is_receiver, index, time, coords))
@@ -195,6 +253,7 @@ impl Ray {
         last_time: &mut u32,
         dimension: &mut ChunkTraversalDataDimension,
         scene_data: &SceneData<C>,
+        allow_receiver: bool,
     ) -> IntersectionCheckResult
     where
         C: Mul<C>,
@@ -206,6 +265,7 @@ impl Ray {
             *last_time,
             dimension.time.ceil() as u32,
             scene_data,
+            allow_receiver,
         );
         if intersection.is_found() {
             return intersection;
@@ -229,6 +289,7 @@ impl Ray {
         time_entry: u32,
         time_exit: u32,
         scene_data: &SceneData<C>,
+        allow_receiver: bool,
     ) -> IntersectionCheckResult
     where
         C: Mul<C>,
@@ -242,7 +303,8 @@ impl Ray {
             .chunks
             .objects_at_key_and_time(key, time_entry, time_exit);
         let mut result: IntersectionCheckResult = IntersectionCheckResult::NoIntersection;
-        if !receivers.is_empty() {
+        // Skip intersection checks with receiver if not allowed
+        if !receivers.is_empty() && allow_receiver {
             // as of current we only have one receiver - this logic might change in the future
             if let Some((time, coords)) = intersection::intersect_ray_and_receiver(
                 self,
@@ -297,7 +359,8 @@ impl Ray {
                 C::to_i32() * C::to_i32(),
                 self.origin.x,
                 scene_data.chunks.size_x,
-                scene_data.chunks.chunk_starts.x + scene_data.chunks.size_x * chunk_indices.0 as f32,
+                scene_data.chunks.chunk_starts.x
+                    + scene_data.chunks.size_x * chunk_indices.0 as f32,
                 self.time,
                 self.velocity,
                 scene_data.maximum_bounds.0.x,
@@ -308,7 +371,8 @@ impl Ray {
                 C::to_i32(),
                 self.origin.y,
                 scene_data.chunks.size_y,
-                scene_data.chunks.chunk_starts.y + scene_data.chunks.size_y * chunk_indices.1 as f32,
+                scene_data.chunks.chunk_starts.y
+                    + scene_data.chunks.size_y * chunk_indices.1 as f32,
                 self.time,
                 self.velocity,
                 scene_data.maximum_bounds.0.y,
@@ -319,7 +383,8 @@ impl Ray {
                 1,
                 self.origin.z,
                 scene_data.chunks.size_z,
-                scene_data.chunks.chunk_starts.z + scene_data.chunks.size_z * chunk_indices.2 as f32,
+                scene_data.chunks.chunk_starts.z
+                    + scene_data.chunks.size_z * chunk_indices.2 as f32,
                 self.time,
                 self.velocity,
                 scene_data.maximum_bounds.0.z,

@@ -468,10 +468,10 @@ fn add_surface_to_chunks<const N: usize, C: Unsigned>(
     <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
 {
     match surface {
-        Surface::Interpolated(coordinates, _time) => {
+        Surface::Interpolated(coordinates, _time, _material) => {
             add_coordinate_slice_to_chunks(coordinates, index, chunks, None);
         }
-        Surface::Keyframes(keyframes) => {
+        Surface::Keyframes(keyframes, _material) => {
             let first_keyframe = &keyframes[0];
             if first_keyframe.time != 0 {
                 add_coordinate_slice_to_chunks(

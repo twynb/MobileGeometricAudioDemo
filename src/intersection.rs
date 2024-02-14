@@ -21,10 +21,10 @@ pub fn intersect_ray_and_surface(
     time_exit: u32,
 ) -> Option<(u32, Vector3<f32>)> {
     match surface {
-        Surface::Interpolated(coords, _time) => {
+        Surface::Interpolated(coords, _time, _material) => {
             intersection_check_surface_coordinates(ray, coords, time_entry, time_exit)
         }
-        Surface::Keyframes(keyframes) => {
+        Surface::Keyframes(keyframes, _material) => {
             for pair in keyframes.windows(2) {
                 if pair[1].time < time_entry {
                     continue;
@@ -89,7 +89,7 @@ fn intersection_check_surface_keyframes(
             let ray_coords = ray.coords_at_time(intersection_time);
 
             if maths::is_point_inside_triangle(&ray_coords, &surface_coords) {
-                intersection = Some((intersection_time.round() as u32, ray_coords))
+                intersection = Some((intersection_time.round() as u32, ray_coords));
             }
         }
     }
@@ -97,7 +97,7 @@ fn intersection_check_surface_keyframes(
     intersection
 }
 
-/// Calculate the surface intersection polynomial parameters (called d_0 through d_3 in the thesis).
+/// Calculate the surface intersection polynomial parameters (called `d_0` through `d_3` in the thesis).
 fn surface_polynomial_parameters(
     ray: &Ray,
     keyframe_first: &SurfaceKeyframe<3>,
@@ -115,19 +115,19 @@ fn surface_polynomial_parameters(
     (
         g2.dot(&velocity) - g2_dot_diff_point_1 / delta_time, // d_3
         g2.dot(&ray.origin) - ray_time * g2.dot(&velocity) - g2.dot(&keyframe_second.coords[0])
-            + g2_dot_diff_point_1 * (&second_div_delta_time)
+            + g2_dot_diff_point_1 * second_div_delta_time
             + g1.dot(&velocity)
             - g1_dot_diff_point_1 / delta_time, // d_2
         g1.dot(&ray.origin) - ray_time * g1.dot(&velocity) - g1.dot(&keyframe_second.coords[0])
-            + g1_dot_diff_point_1 * (&second_div_delta_time)
+            + g1_dot_diff_point_1 * second_div_delta_time
             + g0.dot(&velocity)
             - g0_dot_diff_point_1 / delta_time, // d_1
         g0.dot(&ray.origin) - ray_time * g0.dot(&velocity) - g0.dot(&keyframe_second.coords[0])
-            + g0_dot_diff_point_1 * (&second_div_delta_time), // d_0
+            + g0_dot_diff_point_1 * second_div_delta_time, // d_0
     )
 }
 
-/// Calculate the cross product parameters (called g_0 through g_2 in the thesis).
+/// Calculate the cross product parameters (called `g_0` through `g_2` in the thesis).
 fn surface_cross_product_parameters(
     keyframe_first: &SurfaceKeyframe<3>,
     keyframe_second: &SurfaceKeyframe<3>,
@@ -166,6 +166,7 @@ fn surface_cross_product_parameters(
 }
 
 /// calculate the sub cross product parameters (called f_{n, a, b} in the thesis).
+#[allow(clippy::similar_names)]
 fn surface_sub_cross_product_parameters(
     coords_a_first: &Vector3<f32>,
     coords_a_second: &Vector3<f32>,
@@ -307,7 +308,7 @@ fn intersection_check_receiver_keyframes(
     Some((intersection_time.round() as u32, ray_coords))
 }
 
-/// Calculate the sphere intersection polynomial parameters (called d_0 through d_2 in the thesis).
+/// Calculate the sphere intersection polynomial parameters (called `d_0` through `d_2` in the thesis).
 fn receiver_polynomial_parameters(
     ray: &Ray,
     keyframe_first: &CoordinateKeyframe,

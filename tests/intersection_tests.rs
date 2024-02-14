@@ -1,5 +1,6 @@
 use approx::assert_abs_diff_eq;
 use demo::intersection::{intersect_ray_and_receiver, intersect_ray_and_surface};
+use demo::materials::MATERIAL_CONCRETE_WALL;
 use demo::ray::Ray;
 use demo::scene::{CoordinateKeyframe, Receiver, Surface, SurfaceKeyframe};
 use nalgebra::{Unit, Vector3};
@@ -58,36 +59,40 @@ fn static_surface() -> Surface<3> {
             Vector3::new(0f32, 3f32, 10f32),
         ],
         0,
+        MATERIAL_CONCRETE_WALL,
     )
 }
 
 fn moving_surface() -> Surface<3> {
-    Surface::Keyframes(vec![
-        SurfaceKeyframe {
-            time: 0,
-            coords: [
-                Vector3::new(0f32, 3f32, 0f32),
-                Vector3::new(-10f32, 3f32, 0f32),
-                Vector3::new(-10f32, 3f32, 10f32),
-            ],
-        },
-        SurfaceKeyframe {
-            time: 10,
-            coords: [
-                Vector3::new(10f32, 3f32, 0f32),
-                Vector3::new(0f32, 3f32, 0f32),
-                Vector3::new(0f32, 3f32, 10f32),
-            ],
-        },
-        SurfaceKeyframe {
-            time: 20,
-            coords: [
-                Vector3::new(10f32, 5f32, 0f32),
-                Vector3::new(0f32, 5f32, 0f32),
-                Vector3::new(0f32, 5f32, 10f32),
-            ],
-        },
-    ])
+    Surface::Keyframes(
+        vec![
+            SurfaceKeyframe {
+                time: 0,
+                coords: [
+                    Vector3::new(0f32, 3f32, 0f32),
+                    Vector3::new(-10f32, 3f32, 0f32),
+                    Vector3::new(-10f32, 3f32, 10f32),
+                ],
+            },
+            SurfaceKeyframe {
+                time: 10,
+                coords: [
+                    Vector3::new(10f32, 3f32, 0f32),
+                    Vector3::new(0f32, 3f32, 0f32),
+                    Vector3::new(0f32, 3f32, 10f32),
+                ],
+            },
+            SurfaceKeyframe {
+                time: 20,
+                coords: [
+                    Vector3::new(10f32, 5f32, 0f32),
+                    Vector3::new(0f32, 5f32, 0f32),
+                    Vector3::new(0f32, 5f32, 10f32),
+                ],
+            },
+        ],
+        MATERIAL_CONCRETE_WALL,
+    )
 }
 
 #[test]
