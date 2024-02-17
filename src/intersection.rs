@@ -350,20 +350,20 @@ fn intersection_check_receiver_coordinates(
     time_exit: u32,
 ) -> Option<(u32, Vector3<f32>)> {
     let origin_to_coords = coords - ray.origin;
-    let time_origin_to_angle = origin_to_coords.dot(&(ray.direction.into_inner() * ray.velocity));
+    let time_origin_to_angle = origin_to_coords.dot(&(ray.direction.into_inner()));
     if time_origin_to_angle < 0f32 {
         return None;
     }
-    let time_coords_to_angle = (origin_to_coords.dot(&origin_to_coords)
-        - time_origin_to_angle.powi(2))
-    .abs()
-    .sqrt();
+    let time_coords_to_angle = (origin_to_coords.norm_squared() - time_origin_to_angle.powi(2))
+        .abs()
+        .sqrt();
     if radius - time_coords_to_angle < -0.0001 {
         // rounding errors
         return None;
     }
     let time_angle_to_result = (radius.powi(2) - time_coords_to_angle.powi(2)).abs().sqrt();
-    let intersection_time = time_origin_to_angle - time_angle_to_result + ray.time as f32;
+    let intersection_time =
+        (time_origin_to_angle - time_angle_to_result) / ray.velocity + ray.time as f32;
 
     if (intersection_time.trunc() as u32) < time_entry
         || intersection_time.ceil() as u32 > time_exit

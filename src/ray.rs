@@ -1,8 +1,10 @@
 use std::ops::Mul;
 
+use approx::abs_diff_eq;
 use generic_array::ArrayLength;
 use nalgebra::{base::Unit, Vector3};
 use num::{Num, NumCast};
+use rand::random;
 use typenum::Unsigned;
 
 use crate::{
@@ -18,6 +20,7 @@ const ENERGY_THRESHOLD: f32 = 0.05;
 /// * `Found`: found an intersecting surface.
 /// * `NoIntersection`: No intersection, continue propagating this ray.
 /// * `OutOfBounds`: The ray has exited the scene, no need to propagate further.
+#[derive(Debug, Clone, Copy, PartialEq)]
 enum IntersectionCheckResult {
     /// An intersection has been found.
     /// Variables represent:
@@ -42,7 +45,7 @@ impl IntersectionCheckResult {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug, Copy)]
 /// A ray to bounce through the scene.
 pub struct Ray {
     /// The direction to shoot the ray in.
@@ -121,7 +124,7 @@ impl Ray {
     {
         let mut allow_receiver = true;
         let mut result = vec![];
-        while self.energy < ENERGY_THRESHOLD {
+        while self.energy > ENERGY_THRESHOLD {
             let mut chunk_traversal_data = self.init_chunk_traversal_data(scene_data);
             match self.traverse(scene_data, &mut chunk_traversal_data, allow_receiver) {
                 None => return result,
@@ -129,6 +132,7 @@ impl Ray {
                     if is_receiver {
                         result.push((self.energy, time));
                         allow_receiver = false;
+                        self.origin = coords;
                     } else {
                         allow_receiver = true;
                         self.bounce_from_intersection(scene_data, time, coords, index);
@@ -139,6 +143,12 @@ impl Ray {
         result
     }
 
+    /// Bounce off of an intersection with a surface with the given index.
+    /// The surface material is used to determine how much energy the ray loses
+    /// and whether it's reflected specularly or refracted.
+    /// for refraction, get a random vector within the hemisphere on top of the surface
+    /// and make that the new normal vector.
+    /// for specular reflection, calculate the bouncing angle.
     fn bounce_from_intersection<C: Unsigned>(
         &mut self,
         scene_data: &SceneData<C>,
@@ -150,26 +160,31 @@ impl Ray {
         <C as Mul>::Output: Mul<C>,
         <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
     {
-        let Surface::Interpolated(surface_coords, _time, material) =
-            scene_data.scene.surfaces[index].at_time(time)
-        else {
+        let surface = scene_data.scene.surfaces[index].at_time(time);
+        let Surface::Interpolated(_surface_coords, _time, material) = surface else {
             panic!("at_time() somehow returned a non-interpolated surface. This shouldn't happen.")
         };
+        let normal = surface.normal();
         let mut new_direction = self.direction.into_inner();
         if material.is_bounce_diffuse() {
-        // TODO refraction
-            todo!()
+            // new_direction doesn't have to be a unit vector yet, we'll normalise it later
+            new_direction = Vector3::new(
+                random::<f32>() * 2f32 - 1f32,
+                random::<f32>() * 2f32 - 1f32,
+                random::<f32>() * 2f32 - 1f32,
+            );
+            // new_direction needs to be in a hemisphere on the surface (can't bounce behind the surface)
+            // => if dot product with normal is negative, it's going behind the surface
+            // we also don't want a perfectly orthogonal bounce, so do <= rather than =
+            while new_direction.dot(&normal) <= 0f32 {
+                new_direction = Vector3::new(
+                    random::<f32>() * 2f32 - 1f32,
+                    random::<f32>() * 2f32 - 1f32,
+                    random::<f32>() * 2f32 - 1f32,
+                );
+            }
         } else {
-            let point = nalgebra::geometry::Point3::new(
-                surface_coords[2].x,
-                surface_coords[2].y,
-                surface_coords[2].z,
-            );
-            let reflect = nalgebra::geometry::Reflection3::new_containing_point(
-                Unit::new_normalize(surface_coords[1] - surface_coords[0]),
-                &point,
-            );
-            reflect.reflect(&mut new_direction);
+            new_direction -= 2f32 * (self.direction.dot(&normal)) * normal;
         }
 
         self.time = time;
@@ -260,6 +275,10 @@ impl Ray {
         <C as Mul>::Output: Mul<C>,
         <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
     {
+        if dimension.position >= dimension.bound {
+            return IntersectionCheckResult::OutOfBounds;
+        }
+
         let intersection = self.intersection_check_in_chunk(
             *key as u32,
             *last_time,
@@ -269,10 +288,6 @@ impl Ray {
         );
         if intersection.is_found() {
             return intersection;
-        }
-
-        if dimension.position >= dimension.bound {
-            return IntersectionCheckResult::OutOfBounds;
         }
 
         *last_time = dimension.time.trunc() as u32;
@@ -353,7 +368,7 @@ impl Ray {
             as i32;
         ChunkTraversalData {
             key,
-            last_time: self.time,
+            last_time: self.time + 1, // ignore intersections happening at bounce time
             x: init_chunk_traversal_data_dimension(
                 self.direction[0], // we can directly use direction as direction cosine because it's a unit vector
                 C::to_i32() * C::to_i32(),
@@ -363,8 +378,8 @@ impl Ray {
                     + scene_data.chunks.size_x * chunk_indices.0 as f32,
                 self.time,
                 self.velocity,
-                scene_data.maximum_bounds.0.x,
-                scene_data.maximum_bounds.1.x,
+                C::to_u32(),
+                chunk_indices.0
             ),
             y: init_chunk_traversal_data_dimension(
                 self.direction[1], // we can directly use direction as direction cosine because it's a unit vector
@@ -375,8 +390,8 @@ impl Ray {
                     + scene_data.chunks.size_y * chunk_indices.1 as f32,
                 self.time,
                 self.velocity,
-                scene_data.maximum_bounds.0.y,
-                scene_data.maximum_bounds.1.y,
+                C::to_u32(),
+                chunk_indices.1
             ),
             z: init_chunk_traversal_data_dimension(
                 self.direction[2], // we can directly use direction as direction cosine because it's a unit vector
@@ -387,8 +402,8 @@ impl Ray {
                     + scene_data.chunks.size_z * chunk_indices.2 as f32,
                 self.time,
                 self.velocity,
-                scene_data.maximum_bounds.0.z,
-                scene_data.maximum_bounds.1.z,
+                C::to_u32(),
+                chunk_indices.2
             ),
         }
     }
@@ -403,10 +418,10 @@ fn init_chunk_traversal_data_dimension(
     chunk_start: f32,
     start_time: u32,
     velocity: f32,
-    minimum_bound: f32,
-    maximum_bound: f32,
+    num_chunks: u32,
+    chunk_index: u32,
 ) -> ChunkTraversalDataDimension {
-    if direction_cosine <= 0.0001f32 {
+    if abs_diff_eq!(direction_cosine, 0f32) {
         ChunkTraversalDataDimension {
             position: f32::MAX,
             delta_position: 0f32,
@@ -416,27 +431,28 @@ fn init_chunk_traversal_data_dimension(
             bound: 0f32,
         }
     } else if direction_cosine > 0f32 {
-        let delta_direction = 1f32 / direction_cosine;
-        let delta_time: f32 = delta_direction * chunk_width / velocity;
+        let delta_direction = chunk_width / direction_cosine;
+        let delta_time: f32 = delta_direction / velocity;
+        println!("{chunk_start} + {chunk_width} - {origin_position}");
         ChunkTraversalDataDimension {
-            position: (chunk_start + chunk_width - origin_position) * delta_direction,
+            position: (chunk_start + chunk_width - origin_position) / chunk_width * delta_direction,
             delta_position: delta_direction,
             key_increment,
             time: start_time as f32
                 + ((chunk_start + chunk_width - origin_position) * delta_time / chunk_width),
             delta_time,
-            bound: maximum_bound,
+            bound: (num_chunks - chunk_index) as f32 * delta_direction,
         }
     } else {
-        let delta_direction = -1f32 / direction_cosine;
-        let delta_time: f32 = delta_direction * chunk_width / velocity;
+        let delta_direction = -chunk_width / direction_cosine;
+        let delta_time: f32 = delta_direction / velocity;
         ChunkTraversalDataDimension {
-            position: (origin_position - chunk_start) * delta_direction,
+            position: (origin_position - chunk_start) / chunk_width * delta_direction,
             delta_position: delta_direction,
             key_increment: -key_increment,
             time: start_time as f32 + ((origin_position - chunk_start) * delta_time / chunk_width),
             delta_time,
-            bound: minimum_bound,
+            bound: chunk_index as f32 * delta_direction,
         }
     }
 }
@@ -454,6 +470,7 @@ impl Default for Ray {
 }
 
 /// Data required for chunk traversal as per CW88
+#[derive(Clone, Copy, Debug, PartialEq)]
 struct ChunkTraversalData {
     key: i32,
     last_time: u32,
@@ -462,6 +479,7 @@ struct ChunkTraversalData {
     z: ChunkTraversalDataDimension,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 struct ChunkTraversalDataDimension {
     position: f32,
     delta_position: f32,

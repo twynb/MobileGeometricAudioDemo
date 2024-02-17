@@ -114,6 +114,24 @@ fn clearly_hit_static_receiver() {
 }
 
 #[test]
+fn clearly_hit_static_receiver_velocity_not_1() {
+let receiver = static_receiver();
+
+    let hitting_ray: Ray = Ray {
+        direction: Unit::new_normalize(Vector3::new(5f32, 10f32, -1f32)),
+        origin: Vector3::new(5f32, 0f32, 2f32),
+        energy: 1f32,
+        time: 5,
+        velocity: 0.5f32,
+    };
+
+    assert_intersection_equals(
+        Some((27, Vector3::new(9.95549, 9.910981, 1.0089018f32))),
+        intersect_ray_and_receiver(&hitting_ray, &receiver, 0, 100),
+    );
+}
+
+#[test]
 fn miss_static_receiver_because_time() {
     let receiver = static_receiver();
 

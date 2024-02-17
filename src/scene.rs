@@ -43,7 +43,7 @@ pub enum Surface<const N: usize> {
 }
 
 impl<const N: usize> Surface<N> {
-    /// Calculate this surface's normal.
+    /// Calculate this surface's normal as a unit vector.
     /// 
     /// # Panics
     /// 

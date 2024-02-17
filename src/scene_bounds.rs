@@ -1,6 +1,6 @@
 use nalgebra::Vector3;
 
-use crate::scene::{Receiver, Scene, Surface, SurfaceKeyframe};
+use crate::scene::{Emitter, Receiver, Scene, Surface, SurfaceKeyframe};
 
 pub trait MaximumBounds {
     /// Get the maximum bounds of the element(s) described by this object.
@@ -85,6 +85,22 @@ impl MaximumBounds for Scene {
                 }
             }
         };
+        match &self.emitter {
+            Emitter::Interpolated(coordinates, _time) => {
+                update_maximum_bounds(coordinates, &mut min_coords, &mut max_coords, Some(0.1f32));
+            }
+            Emitter::Keyframes(keyframes) => {
+                for keyframe in keyframes {
+                    update_maximum_bounds(
+                        &keyframe.coords,
+                        &mut min_coords,
+                        &mut max_coords,
+                        Some(0.1f32),
+                    );
+                }
+            }
+        };
+
 
         (min_coords, max_coords)
     }
@@ -140,7 +156,7 @@ mod tests {
     }
 
     #[test]
-    fn maximum_bounds_moving_receiver_and_ignored_moving_emitter() {
+    fn maximum_bounds_moving_receiver_and_moving_emitter() {
         let scene = Scene {
             receiver: Receiver::Keyframes(
                 vec![
@@ -170,7 +186,7 @@ mod tests {
 
         assert_eq!(
             (
-                Vector3::new(-0.1f32, -0.1f32, -0.1f32),
+                Vector3::new(-10.1f32, -20.1f32, -50.1f32),
                 Vector3::new(20.1f32, 10.1f32, 34.1f32)
             ),
             scene.maximum_bounds()
@@ -178,7 +194,7 @@ mod tests {
     }
 
     #[test]
-    fn maximum_bounds_moving_receiver_and_objects_and_ignored_moving_emitter() {
+    fn maximum_bounds_moving_receiver_and_objects_and_moving_emitter() {
         let scene = Scene {
             receiver: Receiver::Keyframes(
                 vec![
@@ -253,7 +269,7 @@ mod tests {
 
         assert_eq!(
             (
-                Vector3::new(-10f32, -20f32, -30f32),
+                Vector3::new(-10.1f32, -20.1f32, -50.1f32),
                 Vector3::new(20.1f32, 10.1f32, 34.1f32)
             ),
             scene.maximum_bounds()
