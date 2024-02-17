@@ -206,8 +206,9 @@ fn intersection_check_surface_coordinates(
     if direction_dot_normal == 0f32 {
         return None;
     }
-    let intersection_time =
-        -(ray.origin - coords[0]).dot(&normal) / (ray.velocity * direction_dot_normal);
+    let intersection_time = -(ray.origin - coords[0]).dot(&normal)
+        / (ray.velocity * direction_dot_normal)
+        + ray.time as f32;
     if (intersection_time.trunc() as u32) < time_entry
         || intersection_time.ceil() as u32 > time_exit
     {

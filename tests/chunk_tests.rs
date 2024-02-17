@@ -3,7 +3,10 @@ use std::collections::HashMap;
 use generic_array::GenericArray;
 
 use demo::{
-    chunk::{Chunks, SceneChunk, TimedChunkEntry}, materials::MATERIAL_CONCRETE_WALL, scene::{CoordinateKeyframe, Emitter, Receiver, Scene, Surface, SurfaceKeyframe}, scene_builder
+    chunk::{Chunks, SceneChunk, TimedChunkEntry},
+    materials::MATERIAL_CONCRETE_WALL,
+    scene::{CoordinateKeyframe, Emitter, Receiver, Scene, Surface, SurfaceKeyframe},
+    scene_builder,
 };
 use nalgebra::Vector3;
 
@@ -116,6 +119,7 @@ fn chunks_static_scene_moving_receiver() {
         surfaces: scene_builder::static_cube(
             Vector3::new(-10f32, -10f32, -10f32),
             Vector3::new(10f32, 10f32, 10f32),
+            MATERIAL_CONCRETE_WALL,
         ),
         emitter: Emitter::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0),
     };
@@ -238,25 +242,29 @@ fn chunks_moving_scene_and_receiver() {
     let mut surfaces = scene_builder::static_cube(
         Vector3::new(-10f32, -10f32, -10f32),
         Vector3::new(10f32, 10f32, 10f32),
+        MATERIAL_CONCRETE_WALL,
     );
-    surfaces.push(Surface::Keyframes(vec![
-        SurfaceKeyframe {
-            time: 20,
-            coords: [
-                Vector3::new(2f32, 2f32, 2f32),
-                Vector3::new(2f32, 2f32, 3f32),
-                Vector3::new(2f32, 3f32, 2f32),
-            ],
-        },
-        SurfaceKeyframe {
-            time: 500,
-            coords: [
-                Vector3::new(6f32, 6f32, 6f32),
-                Vector3::new(6f32, 6f32, 7f32),
-                Vector3::new(6f32, 7f32, 6f32),
-            ],
-        },
-    ], MATERIAL_CONCRETE_WALL));
+    surfaces.push(Surface::Keyframes(
+        vec![
+            SurfaceKeyframe {
+                time: 20,
+                coords: [
+                    Vector3::new(2f32, 2f32, 2f32),
+                    Vector3::new(2f32, 2f32, 3f32),
+                    Vector3::new(2f32, 3f32, 2f32),
+                ],
+            },
+            SurfaceKeyframe {
+                time: 500,
+                coords: [
+                    Vector3::new(6f32, 6f32, 6f32),
+                    Vector3::new(6f32, 6f32, 7f32),
+                    Vector3::new(6f32, 7f32, 6f32),
+                ],
+            },
+        ],
+        MATERIAL_CONCRETE_WALL,
+    ));
     let scene = Scene {
         receiver: Receiver::Keyframes(
             vec![

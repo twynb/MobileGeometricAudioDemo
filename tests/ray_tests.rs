@@ -1,9 +1,10 @@
 use demo::{
-    materials::Material,
+    materials::{Material, MATERIAL_CONCRETE_WALL},
     ray::{Ray, DEFAULT_PROPAGATION_SPEED},
     scene::{Emitter, Receiver, Scene, Surface},
     scene_bounds::MaximumBounds,
-    scene_builder, SceneData, DEFAULT_SAMPLE_RATE,
+    scene_builder,
+    SceneData, DEFAULT_SAMPLE_RATE,
 };
 use nalgebra::Vector3;
 
@@ -91,6 +92,7 @@ fn unreachable_receiver() {
         surfaces: scene_builder::static_cube(
             Vector3::new(-5f32, -5f32, -5f32),
             Vector3::new(-5f32, -5f32, -5f32),
+            MATERIAL_CONCRETE_WALL,
         ),
         receiver: Receiver::Interpolated(Vector3::new(20f32, 0f32, 0f32), 0.1f32, 0),
         emitter: Emitter::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0),
@@ -135,7 +137,6 @@ fn hitting_receiver_before_and_after_one_bounce() {
         emitter: Emitter::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0),
     };
     let chunks = scene.chunks::<typenum::U10>();
-    println!("{chunks:?}");
     let maximum_bounds = scene.maximum_bounds();
     let scene_data = SceneData {
         scene,
@@ -155,4 +156,3 @@ fn hitting_receiver_before_and_after_one_bounce() {
     let expected = vec![(1.0f32, 2557u32), (0.9f32, 5140u32)];
     assert_eq!(expected, result);
 }
-

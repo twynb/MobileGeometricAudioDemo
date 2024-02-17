@@ -99,13 +99,13 @@ fn moving_surface() -> Surface<3> {
 fn clearly_hit_static_receiver() {
     let receiver = static_receiver();
 
-    let hitting_ray: Ray = Ray {
-        direction: Unit::new_normalize(Vector3::new(5f32, 10f32, -1f32)),
-        origin: Vector3::new(5f32, 0f32, 2f32),
-        energy: 1f32,
-        time: 0,
-        velocity: 1f32,
-    };
+    let hitting_ray: Ray = Ray::new(
+        Unit::new_normalize(Vector3::new(5f32, 10f32, -1f32)),
+        Vector3::new(5f32, 0f32, 2f32),
+        1f32,
+        0,
+        1f32,
+    );
 
     assert_intersection_equals(
         Some((11, Vector3::new(9.95549, 9.910981, 1.0089018f32))),
@@ -115,15 +115,15 @@ fn clearly_hit_static_receiver() {
 
 #[test]
 fn clearly_hit_static_receiver_velocity_not_1() {
-let receiver = static_receiver();
+    let receiver = static_receiver();
 
-    let hitting_ray: Ray = Ray {
-        direction: Unit::new_normalize(Vector3::new(5f32, 10f32, -1f32)),
-        origin: Vector3::new(5f32, 0f32, 2f32),
-        energy: 1f32,
-        time: 5,
-        velocity: 0.5f32,
-    };
+    let hitting_ray: Ray = Ray::new(
+        Unit::new_normalize(Vector3::new(5f32, 10f32, -1f32)),
+        Vector3::new(5f32, 0f32, 2f32),
+        1f32,
+        5,
+        0.5f32,
+    );
 
     assert_intersection_equals(
         Some((27, Vector3::new(9.95549, 9.910981, 1.0089018f32))),
@@ -135,13 +135,13 @@ let receiver = static_receiver();
 fn miss_static_receiver_because_time() {
     let receiver = static_receiver();
 
-    let hitting_ray: Ray = Ray {
-        direction: Unit::new_normalize(Vector3::new(5f32, 10f32, -1f32)),
-        origin: Vector3::new(5f32, 0f32, 2f32),
-        energy: 1f32,
-        time: 0,
-        velocity: 1f32,
-    };
+    let hitting_ray: Ray = Ray::new(
+        Unit::new_normalize(Vector3::new(5f32, 10f32, -1f32)),
+        Vector3::new(5f32, 0f32, 2f32),
+        1f32,
+        0,
+        1f32,
+    );
 
     assert_intersection_equals(
         None,
@@ -153,13 +153,13 @@ fn miss_static_receiver_because_time() {
 fn narrowly_hit_static_receiver() {
     let receiver = static_receiver();
 
-    let narrowly_hitting_ray = Ray {
-        direction: Unit::new_normalize(Vector3::new(0f32, 10f32, -1f32)),
-        origin: Vector3::new(10.1f32, 0f32, 2f32),
-        energy: 1f32,
-        time: 0,
-        velocity: 1f32,
-    };
+    let narrowly_hitting_ray = Ray::new(
+        Unit::new_normalize(Vector3::new(0f32, 10f32, -1f32)),
+        Vector3::new(10.1f32, 0f32, 2f32),
+        1f32,
+        0,
+        1f32,
+    );
 
     assert_intersection_equals(
         Some((10, Vector3::new(10.1f32, 10f32, 1f32))),
@@ -171,13 +171,13 @@ fn narrowly_hit_static_receiver() {
 fn narrowly_miss_static_receiver() {
     let receiver = static_receiver();
 
-    let narrowly_missing_ray = Ray {
-        direction: Unit::new_normalize(Vector3::new(0.001f32, 10f32, -1f32)),
-        origin: Vector3::new(10.1f32, 0f32, 2f32),
-        energy: 1f32,
-        time: 0,
-        velocity: 1f32,
-    };
+    let narrowly_missing_ray = Ray::new(
+        Unit::new_normalize(Vector3::new(0.001f32, 10f32, -1f32)),
+        Vector3::new(10.1f32, 0f32, 2f32),
+        1f32,
+        0,
+        1f32,
+    );
 
     assert_intersection_equals(
         None,
@@ -189,13 +189,13 @@ fn narrowly_miss_static_receiver() {
 fn clearly_miss_static_receiver() {
     let receiver = static_receiver();
 
-    let missing_ray: Ray = Ray {
-        direction: Unit::new_normalize(Vector3::new(1f32, 1f32, 1f32)),
-        origin: Vector3::new(15f32, 0f32, 2f32),
-        energy: 1f32,
-        time: 0,
-        velocity: 1f32,
-    };
+    let missing_ray: Ray = Ray::new(
+        Unit::new_normalize(Vector3::new(1f32, 1f32, 1f32)),
+        Vector3::new(15f32, 0f32, 2f32),
+        1f32,
+        0,
+        1f32,
+    );
 
     assert_intersection_equals(
         None,
@@ -219,13 +219,13 @@ fn hit_receiver_moving_towards_ray() {
         0.1f32,
     );
 
-    let hitting_ray: Ray = Ray {
-        direction: Unit::new_normalize(Vector3::new(-1f32, 0f32, 0f32)),
-        origin: Vector3::new(5f32, 0f32, 0f32),
-        energy: 1f32,
-        time: 0,
-        velocity: 1f32,
-    };
+    let hitting_ray: Ray = Ray::new(
+        Unit::new_normalize(Vector3::new(-1f32, 0f32, 0f32)),
+        Vector3::new(5f32, 0f32, 0f32),
+        1f32,
+        0,
+        1f32,
+    );
 
     assert_intersection_equals(
         Some((10, Vector3::new(-4.93, 0.0, 0.0))),
@@ -237,13 +237,13 @@ fn hit_receiver_moving_towards_ray() {
 fn narrowly_hit_moving_receiver() {
     let receiver = moving_receiver();
 
-    let narrowly_hitting_ray = Ray {
-        direction: Unit::new_normalize(Vector3::new(0f32, 10f32, 0f32)),
-        origin: Vector3::new(10.1f32, 0f32, 1f32),
-        energy: 1f32,
-        time: 0,
-        velocity: 1f32,
-    };
+    let narrowly_hitting_ray = Ray::new(
+        Unit::new_normalize(Vector3::new(0f32, 10f32, 0f32)),
+        Vector3::new(10.1f32, 0f32, 1f32),
+        1f32,
+        0,
+        1f32,
+    );
 
     assert_intersection_equals(
         Some((10, Vector3::new(10.1f32, 10f32, 1f32))),
@@ -254,13 +254,13 @@ fn narrowly_hit_moving_receiver() {
 fn narrowly_miss_moving_receiver() {
     let receiver = moving_receiver();
 
-    let narrowly_missing_ray = Ray {
-        direction: Unit::new_normalize(Vector3::new(0.001f32, 10f32, -0.5f32)),
-        origin: Vector3::new(10.1f32, 0f32, 2f32),
-        energy: 1f32,
-        time: 0,
-        velocity: 1f32,
-    };
+    let narrowly_missing_ray = Ray::new(
+        Unit::new_normalize(Vector3::new(0.001f32, 10f32, -0.5f32)),
+        Vector3::new(10.1f32, 0f32, 2f32),
+        1f32,
+        0,
+        1f32,
+    );
 
     assert_intersection_equals(
         None,
@@ -272,13 +272,13 @@ fn narrowly_miss_moving_receiver() {
 fn clearly_miss_moving_receiver() {
     let receiver = moving_receiver();
 
-    let missing_ray: Ray = Ray {
-        direction: Unit::new_normalize(Vector3::new(1f32, 1f32, 1f32)),
-        origin: Vector3::new(15f32, 0f32, 2f32),
-        energy: 1f32,
-        time: 0,
-        velocity: 1f32,
-    };
+    let missing_ray: Ray = Ray::new(
+        Unit::new_normalize(Vector3::new(1f32, 1f32, 1f32)),
+        Vector3::new(15f32, 0f32, 2f32),
+        1f32,
+        0,
+        1f32,
+    );
 
     assert_intersection_equals(
         None,
@@ -290,13 +290,13 @@ fn clearly_miss_moving_receiver() {
 fn miss_moving_receiver_because_timing() {
     let receiver = moving_receiver();
 
-    let too_late_ray: Ray = Ray {
-        direction: Unit::new_normalize(Vector3::new(0f32, 10f32, 0f32)),
-        origin: Vector3::new(10.1f32, 0f32, 1f32),
-        energy: 1f32,
-        time: 2,
-        velocity: 0.5f32,
-    };
+    let too_late_ray: Ray = Ray::new(
+        Unit::new_normalize(Vector3::new(0f32, 10f32, 0f32)),
+        Vector3::new(10.1f32, 0f32, 1f32),
+        1f32,
+        2,
+        0.5f32,
+    );
 
     assert_intersection_equals(
         None,
@@ -307,13 +307,13 @@ fn miss_moving_receiver_because_timing() {
 #[test]
 fn hit_moving_receiver_after_movement_finished() {
     let receiver = moving_receiver();
-    let late_hitting_ray: Ray = Ray {
-        direction: Unit::new_normalize(Vector3::new(1f32, 1f32, 0f32)),
-        origin: Vector3::new(10f32, -10f32, 1f32),
-        energy: 1f32,
-        time: 20,
-        velocity: 1f32,
-    };
+    let late_hitting_ray: Ray = Ray::new(
+        Unit::new_normalize(Vector3::new(1f32, 1f32, 0f32)),
+        Vector3::new(10f32, -10f32, 1f32),
+        1f32,
+        20,
+        1f32,
+    );
 
     assert_intersection_equals(
         Some((34, Vector3::new(19.93f32, -0.07f32, 1f32))),
@@ -325,13 +325,13 @@ fn hit_moving_receiver_after_movement_finished() {
 fn clearly_hit_static_surface() {
     let surface = static_surface();
 
-    let hitting_ray: Ray = Ray {
-        direction: Unit::new_normalize(Vector3::new(0f32, 10f32, 0f32)),
-        origin: Vector3::new(5f32, -4f32, 2f32),
-        energy: 1f32,
-        time: 0,
-        velocity: 1f32,
-    };
+    let hitting_ray: Ray = Ray::new(
+        Unit::new_normalize(Vector3::new(0f32, 10f32, 0f32)),
+        Vector3::new(5f32, -4f32, 2f32),
+        1f32,
+        0,
+        1f32,
+    );
 
     assert_intersection_equals(
         Some((7, Vector3::new(5f32, 3f32, 2f32))),
@@ -342,13 +342,13 @@ fn clearly_hit_static_surface() {
 fn miss_static_surface_because_time() {
     let surface = static_surface();
 
-    let hitting_ray: Ray = Ray {
-        direction: Unit::new_normalize(Vector3::new(0f32, 10f32, 0f32)),
-        origin: Vector3::new(5f32, -4f32, 2f32),
-        energy: 1f32,
-        time: 0,
-        velocity: 1f32,
-    };
+    let hitting_ray: Ray = Ray::new(
+        Unit::new_normalize(Vector3::new(0f32, 10f32, 0f32)),
+        Vector3::new(5f32, -4f32, 2f32),
+        1f32,
+        0,
+        1f32,
+    );
 
     assert_intersection_equals(
         None,
@@ -360,13 +360,13 @@ fn miss_static_surface_because_time() {
 fn narrowly_hit_static_surface() {
     let surface = static_surface();
 
-    let narrowly_hitting_ray = Ray {
-        direction: Unit::new_normalize(Vector3::new(0f32, 1f32, 0f32)),
-        origin: Vector3::new(0f32, 0f32, 0f32),
-        energy: 1f32,
-        time: 0,
-        velocity: 1f32,
-    };
+    let narrowly_hitting_ray = Ray::new(
+        Unit::new_normalize(Vector3::new(0f32, 1f32, 0f32)),
+        Vector3::new(0f32, 0f32, 0f32),
+        1f32,
+        0,
+        1f32,
+    );
 
     assert_intersection_equals(
         Some((3, Vector3::new(0f32, 3f32, 0f32))),
@@ -378,13 +378,13 @@ fn narrowly_hit_static_surface() {
 fn narrowly_miss_static_surface() {
     let surface = static_surface();
 
-    let narrowly_missing_ray = Ray {
-        direction: Unit::new_normalize(Vector3::new(0f32, 1f32, 0f32)),
-        origin: Vector3::new(-0.01f32, 0f32, 0f32),
-        energy: 1f32,
-        time: 0,
-        velocity: 1f32,
-    };
+    let narrowly_missing_ray = Ray::new(
+        Unit::new_normalize(Vector3::new(0f32, 1f32, 0f32)),
+        Vector3::new(-0.01f32, 0f32, 0f32),
+        1f32,
+        0,
+        1f32,
+    );
 
     assert_intersection_equals(
         None,
@@ -396,13 +396,13 @@ fn narrowly_miss_static_surface() {
 fn clearly_miss_static_surface() {
     let surface = static_surface();
 
-    let missing_ray: Ray = Ray {
-        direction: Unit::new_normalize(Vector3::new(1f32, 0f32, 1f32)),
-        origin: Vector3::new(15f32, 0f32, 2f32),
-        energy: 1f32,
-        time: 0,
-        velocity: 1f32,
-    };
+    let missing_ray: Ray = Ray::new(
+        Unit::new_normalize(Vector3::new(1f32, 0f32, 1f32)),
+        Vector3::new(15f32, 0f32, 2f32),
+        1f32,
+        0,
+        1f32,
+    );
 
     assert_intersection_equals(
         None,
@@ -414,13 +414,13 @@ fn clearly_miss_static_surface() {
 fn clearly_hit_moving_surface() {
     let surface = moving_surface();
 
-    let hitting_ray: Ray = Ray {
-        direction: Unit::new_normalize(Vector3::new(0f32, 10f32, 0f32)),
-        origin: Vector3::new(1f32, -7f32, 2f32),
-        energy: 1f32,
-        time: 0,
-        velocity: 1f32,
-    };
+    let hitting_ray: Ray = Ray::new(
+        Unit::new_normalize(Vector3::new(0f32, 10f32, 0f32)),
+        Vector3::new(1f32, -7f32, 2f32),
+        1f32,
+        0,
+        1f32,
+    );
 
     assert_intersection_equals(
         Some((10, Vector3::new(1f32, 3f32, 2f32))),
@@ -432,13 +432,13 @@ fn clearly_hit_moving_surface() {
 fn miss_moving_surface_because_time() {
     let surface = moving_surface();
 
-    let hitting_ray: Ray = Ray {
-        direction: Unit::new_normalize(Vector3::new(0f32, 10f32, 0f32)),
-        origin: Vector3::new(1f32, -7f32, 2f32),
-        energy: 1f32,
-        time: 0,
-        velocity: 1f32,
-    };
+    let hitting_ray: Ray = Ray::new(
+        Unit::new_normalize(Vector3::new(0f32, 10f32, 0f32)),
+        Vector3::new(1f32, -7f32, 2f32),
+        1f32,
+        0,
+        1f32,
+    );
 
     assert_intersection_equals(
         None,
@@ -450,13 +450,13 @@ fn miss_moving_surface_because_time() {
 fn hit_moving_surface_with_ray_starting_late() {
     let surface = moving_surface();
 
-    let hitting_ray_with_later_start: Ray = Ray {
-        direction: Unit::new_normalize(Vector3::new(0f32, 10f32, 0f32)),
-        origin: Vector3::new(1f32, -2f32, 2f32),
-        energy: 1f32,
-        time: 5,
-        velocity: 1f32,
-    };
+    let hitting_ray_with_later_start: Ray = Ray::new(
+        Unit::new_normalize(Vector3::new(0f32, 10f32, 0f32)),
+        Vector3::new(1f32, -2f32, 2f32),
+        1f32,
+        5,
+        1f32,
+    );
 
     assert_intersection_equals(
         Some((10, Vector3::new(1f32, 3f32, 2f32))),
@@ -468,13 +468,13 @@ fn hit_moving_surface_with_ray_starting_late() {
 fn narrowly_miss_moving_surface() {
     let surface = moving_surface();
 
-    let narrowly_missing_ray: Ray = Ray {
-        direction: Unit::new_normalize(Vector3::new(0f32, 10f32, 0f32)),
-        origin: Vector3::new(-0.1f32, -2f32, 2f32),
-        energy: 1f32,
-        time: 5,
-        velocity: 1f32,
-    };
+    let narrowly_missing_ray: Ray = Ray::new(
+        Unit::new_normalize(Vector3::new(0f32, 10f32, 0f32)),
+        Vector3::new(-0.1f32, -2f32, 2f32),
+        1f32,
+        5,
+        1f32,
+    );
 
     assert_intersection_equals(
         None,
@@ -486,13 +486,13 @@ fn narrowly_miss_moving_surface() {
 fn clearly_miss_moving_surface() {
     let surface = moving_surface();
 
-    let clearly_missing_ray: Ray = Ray {
-        direction: Unit::new_normalize(Vector3::new(1f32, 0f32, 1f32)),
-        origin: Vector3::new(1f32, -2f32, 2f32),
-        energy: 1f32,
-        time: 5,
-        velocity: 1f32,
-    };
+    let clearly_missing_ray: Ray = Ray::new(
+        Unit::new_normalize(Vector3::new(1f32, 0f32, 1f32)),
+        Vector3::new(1f32, -2f32, 2f32),
+        1f32,
+        5,
+        1f32,
+    );
 
     assert_intersection_equals(
         None,
@@ -501,39 +501,21 @@ fn clearly_miss_moving_surface() {
 }
 
 /*
-let narrowly_hitting_ray = Ray {
-    direction: Unit::new_normalize(Vector3::new(0f32, 1f32, 0f32)),
-    origin: Vector3::new(0f32, 0f32, 0f32),
-    energy: 1f32,
-    time: 0,
-    velocity: 1f32,
-};
+let narrowly_hitting_ray = Ray::new(Unit::new_normalize(Vector3::new(0f32, 1f32, 0f32)), Vector3::new(0f32, 0f32, 0f32), 1f32, 0, 1f32);
 
 assert_intersection_equal(
     Some((3, Vector3::new(0f32, 3f32, 0f32))),
     intersect_ray_and_surface(&narrowly_hitting_ray, &surface, 0, 100),
 );
 
-let narrowly_missing_ray = Ray {
-    direction: Unit::new_normalize(Vector3::new(0f32, 1f32, 0f32)),
-    origin: Vector3::new(-0.01f32, 0f32, 0f32),
-    energy: 1f32,
-    time: 0,
-    velocity: 1f32,
-};
+let narrowly_missing_ray = Ray::new(Unit::new_normalize(Vector3::new(0f32, 1f32, 0f32)), Vector3::new(-0.01f32, 0f32, 0f32), 1f32, 0, 1f32);
 
 assert_intersection_equal(
     None,
     intersect_ray_and_surface(&narrowly_missing_ray, &surface, 0, 100),
 );
 
-let missing_ray: Ray = Ray {
-    direction: Unit::new_normalize(Vector3::new(1f32, 0f32, 1f32)),
-    origin: Vector3::new(15f32, 0f32, 2f32),
-    energy: 1f32,
-    time: 0,
-    velocity: 1f32,
-};
+let missing_ray: Ray = Ray::new(Unit::new_normalize(Vector3::new(1f32, 0f32, 1f32)), Vector3::new(15f32, 0f32, 2f32), 1f32, 0, 1f32);
 
 assert_intersection_equal(
     None,
