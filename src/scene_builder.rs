@@ -196,6 +196,7 @@ impl SceneBuilder {
         self
     }
 
+    #[allow(clippy::option_if_let_else)]
     pub fn build(&self) -> Scene {
         let objects: Vec<Vec<Surface<3>>> = self
             .objects

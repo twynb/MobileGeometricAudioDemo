@@ -29,9 +29,9 @@ mod test_utils;
 /// General data about a scene, required to bounce a ray through.
 /// Contains the scene itself, its maximum boundaries and its
 /// chunk representation.
-pub struct SceneData<C: Unsigned>
+pub struct SceneData<C>
 where
-    C: Mul<C>,
+    C: Unsigned + Mul<C>,
     <C as Mul>::Output: Mul<C>,
     <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
 {
@@ -40,9 +40,9 @@ where
     pub maximum_bounds: (nalgebra::Vector3<f32>, nalgebra::Vector3<f32>),
 }
 
-impl<C: Unsigned> SceneData<C>
+impl<C> SceneData<C>
 where
-    C: Mul<C>,
+    C: Unsigned + Mul<C>,
     <C as Mul>::Output: Mul<C>,
     <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
 {
@@ -52,7 +52,7 @@ where
         Self {
             scene,
             chunks,
-            maximum_bounds
+            maximum_bounds,
         }
     }
 
@@ -76,9 +76,9 @@ where
         Ray::launch(
             // doesn't need to be a unit vector, Ray::launch() normalises this
             Vector3::new(
-                random::<f32>() * 2f32 - 1f32,
-                random::<f32>() * 2f32 - 1f32,
-                random::<f32>() * 2f32 - 1f32,
+                random::<f32>().mul_add(2f32, -1f32),
+                random::<f32>().mul_add(2f32, -1f32),
+                random::<f32>().mul_add(2f32, -1f32),
             ),
             emitter_coords,
             time,

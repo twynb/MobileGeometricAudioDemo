@@ -12,7 +12,7 @@ trait RealCubeRoot {
 }
 
 impl RealCubeRoot for Complex<f32> {
-    fn real_cbrt(&self) -> Complex<f32> {
+    fn real_cbrt(&self) -> Self {
         if self.im.is_zero() {
             // simple real ∛r, and copy `im` for its sign
             Self::new(self.re.cbrt(), self.im)
@@ -39,7 +39,7 @@ impl RealCubeRoot for Complex<f32> {
 /// This uses the General Cubic Formula as described in Abramowitz/Stegun's Handbook of Mathematical Functions.
 ///
 /// TODO: Optimise by returning a [Option<f32>; 3] rather than a Vec<f32>
-pub(crate) fn solve_cubic_equation(a3: f32, mut a2: f32, mut a1: f32, mut a0: f32) -> Vec<f32> {
+pub fn solve_cubic_equation(a3: f32, mut a2: f32, mut a1: f32, mut a0: f32) -> Vec<f32> {
     if a3 == 0f32 {
         return solve_quadratic_equation(a2, a1, a0);
     }
@@ -48,9 +48,11 @@ pub(crate) fn solve_cubic_equation(a3: f32, mut a2: f32, mut a1: f32, mut a0: f3
     a0 /= a3;
 
     let q = a1 / 3f32 - a2.powi(2) / 9f32;
-    let r = (a1 * a2 - 3f32 * a0) / 6f32 - a2.powi(3) / 27f32;
+    let r = a1.mul_add(a2, -3f32 * a0) / 6f32 - a2.powi(3) / 27f32;
 
-    let q_r_sqrt: Complex<f32> = Complex::new(q.powi(3) + r.powi(2), 0f32).sqrt();
+    // readable/non-optimised version
+    // let q_r_sqrt: Complex<f32> = Complex::new(q.powi(3) + r.powi(2), 0f32).sqrt();
+    let q_r_sqrt: Complex<f32> = Complex::new(r.mul_add(r, q.powi(3)), 0f32).sqrt();
 
     let s1 = (r + q_r_sqrt).real_cbrt();
     let s2 = (r - q_r_sqrt).real_cbrt();
@@ -80,11 +82,11 @@ pub(crate) fn solve_cubic_equation(a3: f32, mut a2: f32, mut a1: f32, mut a0: f3
 /// This uses the general quadratic formula as described in Abramowitz/Stegun's Handbook of Mathematical Functions.
 ///
 /// TODO: Optimise by returning a [Option<f32>; 2] rather than a Vec<f32>
-pub(crate) fn solve_quadratic_equation(a2: f32, a1: f32, a0: f32) -> Vec<f32> {
+pub fn solve_quadratic_equation(a2: f32, a1: f32, a0: f32) -> Vec<f32> {
     if a2 == 0f32 {
         return solve_linear_equation(a1, a0);
     }
-    let q = a1.powi(2) - 4f32 * a2 * a0;
+    let q = a1.mul_add(a1, -4f32 * a2 * a0);
     if q < 0f32 {
         vec![]
     } else if q == 0f32 {
@@ -98,7 +100,7 @@ pub(crate) fn solve_quadratic_equation(a2: f32, a1: f32, a0: f32) -> Vec<f32> {
 
 /// Solve the given linear equation a1 * x + a0 = 0 and return a vec
 /// holding the single result, or nothing if a1 is 0
-pub(crate) fn solve_linear_equation(a1: f32, a0: f32) -> Vec<f32> {
+pub fn solve_linear_equation(a1: f32, a0: f32) -> Vec<f32> {
     if a1 == 0f32 {
         vec![]
     } else {
@@ -111,17 +113,14 @@ pub(crate) fn solve_linear_equation(a1: f32, a0: f32) -> Vec<f32> {
 /// indicate the point is within the triangle.
 /// Note that this does not check whether the point is inside the triangle's plane
 /// and instead projects it into it!
-pub(crate) fn is_point_inside_triangle(point: &Vector3<f32>, triangle: &[Vector3<f32>; 3]) -> bool {
+pub fn is_point_inside_triangle(point: &Vector3<f32>, triangle: &[Vector3<f32>; 3]) -> bool {
     barycentric_coords_inside_triangle(barycentric_coords(point, triangle))
 }
 
 /// Get the barycentric coordinates for the given point in the given vector.
 /// This will project the point into the same plane as the triangle.
 /// based on [this solution from Karadeniz Technical University](https://ceng2.ktu.edu.tr/~cakir/files/grafikler/Texture_Mapping.pdf)
-pub(crate) fn barycentric_coords(
-    point: &Vector3<f32>,
-    triangle: &[Vector3<f32>; 3],
-) -> (f32, f32, f32) {
+pub fn barycentric_coords(point: &Vector3<f32>, triangle: &[Vector3<f32>; 3]) -> (f32, f32, f32) {
     let v0 = triangle[1] - triangle[0];
     let v1 = triangle[2] - triangle[0];
     let v2 = point - triangle[0];
@@ -130,9 +129,9 @@ pub(crate) fn barycentric_coords(
     let d11 = v1.dot(&v1);
     let d20 = v2.dot(&v0);
     let d21 = v2.dot(&v1);
-    let denom = d00 * d11 - d01 * d01;
-    let beta = (d11 * d20 - d01 * d21) / denom;
-    let gamma = (d00 * d21 - d01 * d20) / denom;
+    let denom = d00.mul_add(d11, -d01 * d01);
+    let beta = d11.mul_add(d20, -d01 * d21) / denom;
+    let gamma = d00.mul_add(d21, -d01 * d20) / denom;
     let alpha = 1f32 - beta - gamma;
     (alpha, beta, gamma)
 }
@@ -140,7 +139,7 @@ pub(crate) fn barycentric_coords(
 /// Check whether the given barycentric coordinates indicate that the described point
 /// is within the reference triangle. This is true if all coordinates are >=0 and
 /// the three coordinates added up equal 1.
-pub(crate) fn barycentric_coords_inside_triangle(coords: (f32, f32, f32)) -> bool {
+pub fn barycentric_coords_inside_triangle(coords: (f32, f32, f32)) -> bool {
     0f32 <= coords.0
         && 0f32 <= coords.1
         && 0f32 <= coords.2

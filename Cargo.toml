@@ -16,6 +16,7 @@ path = "src/lib.rs"
 [lints.clippy]
 all = { level = "deny", priority = -1 }
 pedantic = { level = "deny", priority = -1 }
+nursery = { level = "warn", priority = -1 }
 enum_glob_use = "deny"
 missing_const_for_fn = "deny"
 # potentially add these back in the future
@@ -26,6 +27,7 @@ cast_sign_loss = "allow"
 cast_possible_wrap = "allow"
 cast_possible_truncation = "allow"
 unreadable_literal = "allow"
+suspicious_operation_groupings = "allow"
 
 [dependencies]
 approx = "0.5.1"

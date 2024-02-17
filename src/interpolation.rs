@@ -67,7 +67,7 @@ fn interpolate_coordinates(
 /// * `w2`: `w` for the second coordinate.
 /// * `interp_position`: The interpolation position. Should be between 0 (only use first coordinate) and 1 (only second coordinate).
 fn interpolate_single_coordinate(coord1: f32, coord2: f32, interp_position: f32) -> f32 {
-    coord1 * interp_position + coord2 * (1f32 - interp_position)
+    coord1.mul_add(interp_position, coord2 * (1f32 - interp_position))
 }
 
 /// Calculate the interpolated coordinate at the given time.
@@ -113,9 +113,9 @@ pub fn interpolate_coordinate_keyframes(
 /// * `first`: The first keyframe to interpolate.
 /// * `second`: The second keyframe to interpolate.
 /// * `time`: The time.
-/// 
+///
 /// # Panics
-/// 
+///
 /// * If u32 can't be cast to T or T can't be cast to f32.
 pub fn interpolate_two_coordinate_keyframes<T: Num + NumCast + PartialOrd + Copy>(
     first: &CoordinateKeyframe,
@@ -180,9 +180,9 @@ fn interpolate_surface_keyframes<const N: usize>(
 /// * `first`: The first keyframe to interpolate.
 /// * `second`: The second keyframe to interpolate.
 /// * `time`: The time.
-/// 
+///
 /// # Panics
-/// 
+///
 /// * If u32 can't be cast to T or T can't be cast to f32.
 pub fn interpolate_two_surface_keyframes<const N: usize, T: Num + NumCast + PartialOrd + Copy>(
     first: &SurfaceKeyframe<N>,
@@ -228,9 +228,9 @@ fn calculate_interp_position<T: Num + NumCast + Copy>(
 impl Interpolation for Emitter {
     fn at_time(&self, time: u32) -> Self {
         match self {
-            Emitter::Interpolated(_keyframes, _time) => self.clone(),
-            Emitter::Keyframes(keyframes) => {
-                Emitter::Interpolated(interpolate_coordinate_keyframes(keyframes, time), time)
+            Self::Interpolated(_keyframes, _time) => self.clone(),
+            Self::Keyframes(keyframes) => {
+                Self::Interpolated(interpolate_coordinate_keyframes(keyframes, time), time)
             }
         }
     }
@@ -239,8 +239,8 @@ impl Interpolation for Emitter {
 impl Interpolation for Receiver {
     fn at_time(&self, time: u32) -> Self {
         match self {
-            Receiver::Interpolated(_keyframes, _radius, _time) => self.clone(),
-            Receiver::Keyframes(keyframes, radius) => Receiver::Interpolated(
+            Self::Interpolated(_keyframes, _radius, _time) => self.clone(),
+            Self::Keyframes(keyframes, radius) => Self::Interpolated(
                 interpolate_coordinate_keyframes(keyframes, time),
                 *radius,
                 time,
@@ -252,10 +252,12 @@ impl Interpolation for Receiver {
 impl<const N: usize> Interpolation for Surface<N> {
     fn at_time(&self, time: u32) -> Self {
         match self {
-            Surface::Interpolated(_keyframes, _time, _material) => self.clone(),
-            Surface::Keyframes(keyframes, material) => {
-                Surface::Interpolated(interpolate_surface_keyframes(keyframes, time), time, *material)
-            }
+            Self::Interpolated(_keyframes, _time, _material) => self.clone(),
+            Self::Keyframes(keyframes, material) => Self::Interpolated(
+                interpolate_surface_keyframes(keyframes, time),
+                time,
+                *material,
+            ),
         }
     }
 }

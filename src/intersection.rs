@@ -112,6 +112,8 @@ fn surface_polynomial_parameters(
     let g2_dot_diff_point_1 = g2.dot(&delta_point_1);
     let g1_dot_diff_point_1 = g1.dot(&delta_point_1);
     let g0_dot_diff_point_1 = g0.dot(&delta_point_1);
+    /*
+    Non-optimised (readable) version
     (
         g2.dot(&velocity) - g2_dot_diff_point_1 / delta_time, // d_3
         g2.dot(&ray.origin) - ray_time * g2.dot(&velocity) - g2.dot(&keyframe_second.coords[0])
@@ -124,6 +126,31 @@ fn surface_polynomial_parameters(
             - g0_dot_diff_point_1 / delta_time, // d_1
         g0.dot(&ray.origin) - ray_time * g0.dot(&velocity) - g0.dot(&keyframe_second.coords[0])
             + g0_dot_diff_point_1 * second_div_delta_time, // d_0
+    )
+     */
+    (
+        g2.dot(&velocity) - g2_dot_diff_point_1 / delta_time, // d_3
+        g2_dot_diff_point_1.mul_add(
+            second_div_delta_time,
+            ray_time.mul_add(-g2.dot(&velocity), g2.dot(&ray.origin))
+                - g2.dot(&keyframe_second.coords[0]),
+        ) + g1.dot(&velocity)
+            - g1_dot_diff_point_1 / delta_time, // d_2
+        g1_dot_diff_point_1.mul_add(
+            second_div_delta_time,
+            ray_time.mul_add(
+                -g1.dot(&velocity),
+                g1.dot(&ray.origin) - g1.dot(&keyframe_second.coords[0]),
+            ),
+        ) + g0.dot(&velocity)
+            - g0_dot_diff_point_1 / delta_time, // d_1
+        g0_dot_diff_point_1.mul_add(
+            second_div_delta_time,
+            ray_time.mul_add(
+                -g0.dot(&velocity),
+                g0.dot(&ray.origin) - g0.dot(&keyframe_second.coords[0]),
+            ),
+        ), // d_0
     )
 }
 
@@ -292,10 +319,7 @@ fn intersection_check_receiver_keyframes(
         {
             continue;
         }
-        if match intersection {
-            Some(time) => time > intersection_time,
-            None => true,
-        } {
+        if intersection.map_or(true, |time| time > intersection_time) {
             intersection = Some(intersection_time);
         }
     }
@@ -323,6 +347,8 @@ fn receiver_polynomial_parameters(
     let delta_center = keyframe_second.coords - keyframe_first.coords;
     let ray_origin_to_center_second = ray.origin - keyframe_second.coords;
     let origin_minus_center_minus_t0_v = ray_origin_to_center_second - ray_time * velocity;
+    /*
+    Unoptimized (readable) version:
     (
         velocity.norm_squared() * delta_time.powi(2) + delta_center.norm_squared()
             - 2f32 * delta_time * velocity.dot(&delta_center), // d_2
@@ -338,6 +364,43 @@ fn receiver_polynomial_parameters(
             + 2f32 * second_time * delta_time * origin_minus_center_minus_t0_v.dot(&delta_center)
             + second_time.powi(2) * delta_center.norm_squared()
             - radius.powi(2) * delta_time.powi(2), // d_0
+    )
+     */
+    (
+        (2f32 * delta_time).mul_add(
+            -velocity.dot(&delta_center),
+            velocity
+                .norm_squared()
+                .mul_add(delta_time.powi(2), delta_center.norm_squared()),
+        ), // d_2
+        2f32 * (delta_time.powi(2).mul_add(
+            ray_origin_to_center_second.dot(&velocity),
+            ray_time.mul_add(
+                -velocity.norm_squared(),
+                delta_time.mul_add(
+                    -origin_minus_center_minus_t0_v.dot(&delta_center),
+                    second_time
+                        * delta_time
+                            .mul_add(velocity.dot(&delta_center), -delta_center.norm_squared()),
+                ),
+            ),
+        )), // d_1
+        delta_time.powi(2).mul_add(
+            (-2f32 * ray_time).mul_add(
+                ray_origin_to_center_second.dot(&velocity),
+                ray_time.powi(2).mul_add(
+                    velocity.norm_squared(),
+                    ray_origin_to_center_second.norm_squared(),
+                ),
+            ),
+            (2f32 * second_time * delta_time).mul_add(
+                origin_minus_center_minus_t0_v.dot(&delta_center),
+                second_time.powi(2).mul_add(
+                    delta_center.norm_squared(),
+                    -radius.powi(2) * delta_time.powi(2),
+                ),
+            ),
+        ), // d_0
     )
 }
 
@@ -355,14 +418,19 @@ fn intersection_check_receiver_coordinates(
     if time_origin_to_angle < 0f32 {
         return None;
     }
-    let time_coords_to_angle = (origin_to_coords.norm_squared() - time_origin_to_angle.powi(2))
+    // non-optimised/readable version
+    // let time_coords_to_angle = (origin_to_coords.norm_squared() - time_origin_to_angle.powi(2))
+    let time_coords_to_angle = time_origin_to_angle
+        .mul_add(-time_origin_to_angle, origin_to_coords.norm_squared())
         .abs()
         .sqrt();
     if radius - time_coords_to_angle < -0.0001 {
         // rounding errors
         return None;
     }
-    let time_angle_to_result = (radius.powi(2) - time_coords_to_angle.powi(2)).abs().sqrt();
+    // non-optimised/readable version
+    // let time_angle_to_result = (radius.powi(2) - time_coords_to_angle.powi(2)).abs().sqrt();
+    let time_angle_to_result = radius.mul_add(radius, - time_coords_to_angle.powi(2)).abs().sqrt();
     let intersection_time =
         (time_origin_to_angle - time_angle_to_result) / ray.velocity + ray.time as f32;
 

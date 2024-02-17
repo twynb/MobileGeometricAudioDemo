@@ -4,7 +4,7 @@ use std::hash::Hash;
 /// Check that two unordered collections of items are equal.
 /// This ignores duplicates within the collections!
 /// by [StackOverflow user Shepmaster](https://stackoverflow.com/a/42748484/16293155)
-pub(crate) fn unordered_eq_without_duplicates<T: Eq + Hash>(a: &[T], b: &[T]) -> bool {
+pub fn unordered_eq_without_duplicates<T: Eq + Hash>(a: &[T], b: &[T]) -> bool {
     let a: HashSet<_> = a.iter().collect();
     let b: HashSet<_> = b.iter().collect();
     a == b
@@ -12,6 +12,6 @@ pub(crate) fn unordered_eq_without_duplicates<T: Eq + Hash>(a: &[T], b: &[T]) ->
 
 /// Assert that the given two unordered collections of items are equal.
 /// This ignores duplicates within the collections!
-pub(crate) fn assert_unordered_eq_ignoring_duplicates<T: Eq + Hash>(a: &[T], b: &[T]) {
+pub fn assert_unordered_eq_ignoring_duplicates<T: Eq + Hash>(a: &[T], b: &[T]) {
     assert!(unordered_eq_without_duplicates(a, b));
 }

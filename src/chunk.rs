@@ -96,9 +96,9 @@ impl PartialEq for SceneChunk {
 /// are calculated as (x << 16 + y << 8 + z), with x/y/z each being
 /// an up to 8-bit index for the given chunk.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Chunks<C: Unsigned>
+pub struct Chunks<C>
 where
-    C: Mul<C>,
+    C: Unsigned + Mul<C>,
     <C as Mul>::Output: Mul<C>,
     <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
 {
@@ -113,15 +113,15 @@ where
     pub chunk_starts: Vector3<f32>,
 }
 
-impl<C: Unsigned> Chunks<C>
+impl<C> Chunks<C>
 where
-    C: Mul<C>,
+    C: Unsigned + Mul<C>,
     <C as Mul>::Output: Mul<C>,
     <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
 {
     /// TODO: move `coords_to_chunk_index` logic here
     /// This is currently just an alias for the `coords_to_chunk_index` function.
-    /// 
+    ///
     /// # Example
     /// ```
     /// use typenum::U10;
@@ -328,7 +328,7 @@ where
         }
     }
 
-    /// Check whether the given chunk holds any data by checking the 
+    /// Check whether the given chunk holds any data by checking the
     /// `set_chunks` bit.
     ///
     /// # Example
@@ -364,10 +364,10 @@ where
         time_entry: u32,
         time_exit: u32,
     ) -> (Vec<usize>, Vec<usize>) {
-        match self.chunks.get(&key) {
-            Some(chunk) => chunk.objects_at_time(time_entry, time_exit),
-            None => (vec![], vec![]),
-        }
+        self.chunks.get(&key).map_or_else(
+            || (vec![], vec![]),
+            |chunk| chunk.objects_at_time(time_entry, time_exit),
+        )
     }
 }
 
@@ -396,9 +396,9 @@ impl Scene {
     /// Each keyframe pair (so the first and second, second and third, ...) is iterated over individually, calculating
     /// which chunks they are in and when.
     /// This avoids excessive chunking in cases where, for example, a surface moves along an L-shaped path.
-    pub fn chunks<C: Unsigned>(&self) -> Chunks<C>
+    pub fn chunks<C>(&self) -> Chunks<C>
     where
-        C: Mul<C>,
+        C: Unsigned + Mul<C>,
         <C as Mul>::Output: Mul<C>,
         <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
     {
@@ -458,12 +458,12 @@ fn single_chunk_size(min: f32, max: f32, number: u16) -> f32 {
 ///
 /// For keyframe surfaces, this will iterate over each pair of keyframes and add them to the according
 /// chunks following the logic from `add_keyframe_pair_to_chunks`.
-fn add_surface_to_chunks<const N: usize, C: Unsigned>(
+fn add_surface_to_chunks<const N: usize, C>(
     surface: &Surface<N>,
     chunks: &mut Chunks<C>,
     index: usize,
 ) where
-    C: Mul<C>,
+    C: Unsigned + Mul<C>,
     <C as Mul>::Output: Mul<C>,
     <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
 {
@@ -502,9 +502,9 @@ fn add_surface_to_chunks<const N: usize, C: Unsigned>(
 ///
 /// For keyframe receivers, this will iterate over each pair of keyframes and add them to the according
 /// chunks following the logic from `add_keyframe_pair_to_chunks`.
-fn add_receiver_to_chunks<C: Unsigned>(receiver: &Receiver, chunks: &mut Chunks<C>)
+fn add_receiver_to_chunks<C>(receiver: &Receiver, chunks: &mut Chunks<C>)
 where
-    C: Mul<C>,
+    C: Unsigned + Mul<C>,
     <C as Mul>::Output: Mul<C>,
     <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
 {
@@ -547,13 +547,13 @@ where
 /// and the resulting time and chunks are written accordingly.
 ///
 /// This process is repeated until the second keyframe's time is reached.
-fn add_surface_keyframe_pair_to_chunks<const N: usize, C: Unsigned>(
+fn add_surface_keyframe_pair_to_chunks<const N: usize, C>(
     mut first: SurfaceKeyframe<N>,
     second: &SurfaceKeyframe<N>,
     chunks: &mut Chunks<C>,
     index: usize,
 ) where
-    C: Mul<C>,
+    C: Unsigned + Mul<C>,
     <C as Mul>::Output: Mul<C>,
     <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
 {
@@ -607,14 +607,14 @@ fn add_surface_keyframe_pair_to_chunks<const N: usize, C: Unsigned>(
 ///
 /// The chunk boundaries are simplified as a box around the receiver's sphere - in most practical uses, the receiver will be orders of magnitude
 /// smaller than the chunks, so there's no major accuracy loss by simplifying to a box.
-fn add_sphere_keyframe_pair_to_chunks<C: Unsigned>(
+fn add_sphere_keyframe_pair_to_chunks<C>(
     mut first: CoordinateKeyframe,
     second: &CoordinateKeyframe,
     radius: f32,
     chunks: &mut Chunks<C>,
     index: usize,
 ) where
-    C: Mul<C>,
+    C: Unsigned + Mul<C>,
     <C as Mul>::Output: Mul<C>,
     <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
 {
@@ -659,13 +659,13 @@ fn add_sphere_keyframe_pair_to_chunks<C: Unsigned>(
 
 /// Add the object described by the given index to all chunks touched by the
 /// box formed by the given coordinate slice's maximum bounds.
-fn add_coordinate_slice_to_chunks<C: Unsigned>(
+fn add_coordinate_slice_to_chunks<C>(
     coordinates: &[Vector3<f32>],
     index: usize,
     chunks: &mut Chunks<C>,
     time: Option<(u32, Option<u32>)>,
 ) where
-    C: Mul<C>,
+    C: Unsigned + Mul<C>,
     <C as Mul>::Output: Mul<C>,
     <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
 {
@@ -683,14 +683,14 @@ fn add_coordinate_slice_to_chunks<C: Unsigned>(
 
 /// Add the object described by the given index to all chunks touched by the
 /// box formed by the given coordinate slice's maximum bounds.
-fn add_sphere_to_chunks<C: Unsigned>(
+fn add_sphere_to_chunks<C>(
     coordinates: &Vector3<f32>,
     radius: f32,
     index: usize,
     chunks: &mut Chunks<C>,
     time: Option<(u32, Option<u32>)>,
 ) where
-    C: Mul<C>,
+    C: Unsigned + Mul<C>,
     <C as Mul>::Output: Mul<C>,
     <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
 {
@@ -708,13 +708,13 @@ fn add_sphere_to_chunks<C: Unsigned>(
 
 /// Calculate the box formed around the given sphere
 /// bounds, represented as its boundaries' chunk indices.
-fn sphere_chunk_bounds<C: Unsigned>(
+fn sphere_chunk_bounds<C>(
     coordinates: &Vector3<f32>,
     radius: f32,
     chunks: &Chunks<C>,
 ) -> ((u32, u32, u32), (u32, u32, u32))
 where
-    C: Mul<C>,
+    C: Unsigned + Mul<C>,
     <C as Mul>::Output: Mul<C>,
     <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
 {
@@ -730,12 +730,12 @@ where
 
 /// Calculate the box formed by the given coordinates' maximum
 /// bounds, represented as its boundaries' chunk indices.
-fn chunk_bounds<C: Unsigned>(
+fn chunk_bounds<C>(
     coordinates: &[Vector3<f32>],
     chunks: &Chunks<C>,
 ) -> ((u32, u32, u32), (u32, u32, u32))
 where
-    C: Mul<C>,
+    C: Unsigned + Mul<C>,
     <C as Mul>::Output: Mul<C>,
     <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
 {
@@ -747,9 +747,9 @@ where
 }
 
 /// Convert the given coordinates into their related chunk indices.
-fn coords_to_chunk_index<C: Unsigned>(coords: &Vector3<f32>, chunks: &Chunks<C>) -> (u32, u32, u32)
+fn coords_to_chunk_index<C>(coords: &Vector3<f32>, chunks: &Chunks<C>) -> (u32, u32, u32)
 where
-    C: Mul<C>,
+    C: Unsigned + Mul<C>,
     <C as Mul>::Output: Mul<C>,
     <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
 {

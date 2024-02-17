@@ -38,10 +38,7 @@ enum IntersectionCheckResult {
 impl IntersectionCheckResult {
     /// Check whether this `IntersectionCheckResult` is of type "Found".
     const fn is_found(&self) -> bool {
-        matches!(
-            self,
-            IntersectionCheckResult::Found(_is_recv, _index, _time, _coords)
-        )
+        matches!(self, Self::Found(_is_recv, _index, _time, _coords))
     }
 }
 
@@ -110,7 +107,7 @@ impl Ray {
     /// * `scene`: The scene to bounce in.
     /// * `chunks`: The chunks for the scene.
     /// * `maximum_bounds`: The scene's outer bounds.
-    pub fn launch<C: Unsigned>(
+    pub fn launch<C>(
         direction: Vector3<f32>,
         origin: Vector3<f32>,
         start_time: u32,
@@ -119,7 +116,7 @@ impl Ray {
         scene_data: &SceneData<C>,
     ) -> Vec<(f32, u32)>
     where
-        C: Mul<C>,
+        C: Unsigned + Mul<C>,
         <C as Mul>::Output: Mul<C>,
         <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
     {
@@ -135,13 +132,13 @@ impl Ray {
     }
 
     /// Bounce this ray through the given scene.
-    /// 
+    ///
     /// KNOWN ISSUE: We lose some rays here (<1% in the extreme case of working with fully diffusing surfaces)
     /// because of floating point imprecisions, especially when they get into corners.
     /// This will be ignored for now because it's an edge case that will not lose us a significant amount of rays.
-    fn bounce<C: Unsigned>(&mut self, scene_data: &SceneData<C>) -> Vec<(f32, u32)>
+    fn bounce<C>(&mut self, scene_data: &SceneData<C>) -> Vec<(f32, u32)>
     where
-        C: Mul<C>,
+        C: Unsigned + Mul<C>,
         <C as Mul>::Output: Mul<C>,
         <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
     {
@@ -173,14 +170,14 @@ impl Ray {
     /// for refraction, get a random vector within the hemisphere on top of the surface
     /// and make that the new normal vector.
     /// for specular reflection, calculate the bouncing angle.
-    fn bounce_from_intersection<C: Unsigned>(
+    fn bounce_from_intersection<C>(
         &mut self,
         scene_data: &SceneData<C>,
         time: u32,
         coords: Vector3<f32>,
         index: usize,
     ) where
-        C: Mul<C>,
+        C: Unsigned + Mul<C>,
         <C as Mul>::Output: Mul<C>,
         <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
     {
@@ -201,18 +198,18 @@ impl Ray {
         if material.is_bounce_diffuse() {
             // new_direction doesn't have to be a unit vector yet, we'll normalise it later
             new_direction = Vector3::new(
-                random::<f32>() * 2f32 - 1f32,
-                random::<f32>() * 2f32 - 1f32,
-                random::<f32>() * 2f32 - 1f32,
+                random::<f32>().mul_add(2f32, -1f32),
+                random::<f32>().mul_add(2f32, -1f32),
+                random::<f32>().mul_add(2f32, -1f32),
             );
             // new_direction needs to be in a hemisphere on the surface (can't bounce behind the surface)
             // => if dot product with normal is negative, it's going behind the surface
             // we also don't want a perfectly orthogonal bounce, so do <= rather than =
             while new_direction.dot(&normal) <= 0f32 {
                 new_direction = Vector3::new(
-                    random::<f32>() * 2f32 - 1f32,
-                    random::<f32>() * 2f32 - 1f32,
-                    random::<f32>() * 2f32 - 1f32,
+                    random::<f32>().mul_add(2f32, -1f32),
+                    random::<f32>().mul_add(2f32, -1f32),
+                    random::<f32>().mul_add(2f32, -1f32),
                 );
             }
         } else {
@@ -232,14 +229,14 @@ impl Ray {
     /// `chunk_traversal_data` holds the information on where the ray
     /// currently is, and is updated in a loop until either a chunk
     /// with an intersection is found or the ray exits the scene.
-    fn traverse<C: Unsigned>(
+    fn traverse<C>(
         &self,
         scene_data: &SceneData<C>,
         chunk_traversal_data: &mut ChunkTraversalData,
         allow_receiver: bool,
     ) -> Option<(bool, usize, u32, Vector3<f32>)>
     where
-        C: Mul<C>,
+        C: Unsigned + Mul<C>,
         <C as Mul>::Output: Mul<C>,
         <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
     {
@@ -295,7 +292,7 @@ impl Ray {
     }
 
     ///
-    fn traverse_to_next_chunk<C: Unsigned>(
+    fn traverse_to_next_chunk<C>(
         &self,
         key: &mut i32,
         last_time: &mut u32,
@@ -304,7 +301,7 @@ impl Ray {
         allow_receiver: bool,
     ) -> IntersectionCheckResult
     where
-        C: Mul<C>,
+        C: Unsigned + Mul<C>,
         <C as Mul>::Output: Mul<C>,
         <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
     {
@@ -331,7 +328,7 @@ impl Ray {
         IntersectionCheckResult::NoIntersection
     }
 
-    fn intersection_check_in_chunk<C: Unsigned>(
+    fn intersection_check_in_chunk<C>(
         &self,
         key: u32,
         time_entry: u32,
@@ -340,7 +337,7 @@ impl Ray {
         allow_receiver: bool,
     ) -> IntersectionCheckResult
     where
-        C: Mul<C>,
+        C: Unsigned + Mul<C>,
         <C as Mul>::Output: Mul<C>,
         <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
     {
@@ -393,12 +390,9 @@ impl Ray {
         result
     }
 
-    fn init_chunk_traversal_data<C: Unsigned>(
-        &self,
-        scene_data: &SceneData<C>,
-    ) -> ChunkTraversalData
+    fn init_chunk_traversal_data<C>(&self, scene_data: &SceneData<C>) -> ChunkTraversalData
     where
-        C: Mul<C>,
+        C: Unsigned + Mul<C>,
         <C as Mul>::Output: Mul<C>,
         <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
     {
@@ -415,8 +409,10 @@ impl Ray {
                 C::to_i32() * C::to_i32(),
                 self.origin.x,
                 scene_data.chunks.size_x,
-                scene_data.chunks.chunk_starts.x
-                    + scene_data.chunks.size_x * chunk_indices.0 as f32,
+                scene_data
+                    .chunks
+                    .size_x
+                    .mul_add(chunk_indices.0 as f32, scene_data.chunks.chunk_starts.x),
                 self.time,
                 self.velocity,
                 C::to_u32(),
@@ -427,8 +423,10 @@ impl Ray {
                 C::to_i32(),
                 self.origin.y,
                 scene_data.chunks.size_y,
-                scene_data.chunks.chunk_starts.y
-                    + scene_data.chunks.size_y * chunk_indices.1 as f32,
+                scene_data
+                    .chunks
+                    .size_y
+                    .mul_add(chunk_indices.1 as f32, scene_data.chunks.chunk_starts.y),
                 self.time,
                 self.velocity,
                 C::to_u32(),
@@ -439,8 +437,10 @@ impl Ray {
                 1,
                 self.origin.z,
                 scene_data.chunks.size_z,
-                scene_data.chunks.chunk_starts.z
-                    + scene_data.chunks.size_z * chunk_indices.2 as f32,
+                scene_data
+                    .chunks
+                    .size_z
+                    .mul_add(chunk_indices.2 as f32, scene_data.chunks.chunk_starts.z),
                 self.time,
                 self.velocity,
                 C::to_u32(),
@@ -478,8 +478,8 @@ fn init_chunk_traversal_data_dimension(
             position: (chunk_start + chunk_width - origin_position) / chunk_width * delta_direction,
             delta_position: delta_direction,
             key_increment,
-            time: start_time as f32
-                + ((chunk_start + chunk_width - origin_position) / chunk_width * delta_time),
+            time: ((chunk_start + chunk_width - origin_position) / chunk_width)
+                .mul_add(delta_time, start_time as f32),
             delta_time,
             bound: (num_chunks - chunk_index) as f32 * delta_direction,
         }
@@ -490,7 +490,8 @@ fn init_chunk_traversal_data_dimension(
             position: (origin_position - chunk_start) / chunk_width * delta_direction,
             delta_position: delta_direction,
             key_increment: -key_increment,
-            time: start_time as f32 + ((origin_position - chunk_start) / chunk_width * delta_time),
+            time: ((origin_position - chunk_start) / chunk_width)
+                .mul_add(delta_time, start_time as f32),
             delta_time,
             bound: (chunk_index + 1) as f32 * delta_direction,
         }
