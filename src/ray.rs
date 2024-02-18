@@ -8,7 +8,7 @@ use rand::random;
 use typenum::Unsigned;
 
 use crate::{
-    interpolation::Interpolation, intersection, scene::Surface, SceneData, DEFAULT_SAMPLE_RATE,
+    interpolation::Interpolation, intersection, scene::{Surface, SceneData}, DEFAULT_SAMPLE_RATE,
 };
 
 /// The normal speed of sound in air at 20 °C, in m/s.

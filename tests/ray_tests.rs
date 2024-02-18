@@ -1,10 +1,9 @@
 use demo::{
     materials::{Material, MATERIAL_CONCRETE_WALL},
     ray::{Ray, DEFAULT_PROPAGATION_SPEED},
-    scene::{Emitter, Receiver, Scene, Surface},
+    scene::{Emitter, Receiver, Scene, SceneData, Surface},
     scene_bounds::MaximumBounds,
-    scene_builder,
-    SceneData, DEFAULT_SAMPLE_RATE,
+    scene_builder, DEFAULT_SAMPLE_RATE,
 };
 use nalgebra::Vector3;
 

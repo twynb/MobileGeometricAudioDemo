@@ -1,5 +1,5 @@
 use demo::{
-    materials::MATERIAL_CONCRETE_WALL, ray::DEFAULT_PROPAGATION_SPEED, scene_builder::SceneBuilder, SceneData, DEFAULT_SAMPLE_RATE
+    materials::MATERIAL_CONCRETE_WALL, ray::DEFAULT_PROPAGATION_SPEED, scene_builder::SceneBuilder, scene::SceneData, DEFAULT_SAMPLE_RATE
 };
 
 fn main() {
