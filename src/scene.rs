@@ -6,7 +6,10 @@ use rand::random;
 use rayon::prelude::*;
 use typenum::Unsigned;
 
-use crate::{chunk::Chunks, interpolation::Interpolation, materials::Material, ray::Ray, scene_bounds::MaximumBounds};
+use crate::{
+    chunk::Chunks, interpolation::Interpolation, materials::Material, ray::Ray,
+    scene_bounds::MaximumBounds,
+};
 
 /// Keyframe for a single set of coordinates.
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -50,9 +53,9 @@ pub enum Surface<const N: usize> {
 
 impl<const N: usize> Surface<N> {
     /// Calculate this surface's normal as a unit vector.
-    /// 
+    ///
     /// # Panics
-    /// 
+    ///
     /// * When attempting to calculate the normal on a non-interpolated surface.
     pub fn normal(&self) -> Vector3<f32> {
         match self {
@@ -97,9 +100,14 @@ where
     <C as Mul>::Output: Mul<C>,
     <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
 {
+    /// Calculate the chunks and maximum bounds for a given `Scene`,
+    /// then represent it all in a single `SceneData` object.
+    /// To avoid errors, the maximum bounds are expanded by 0.1 in each direction.
     pub fn create_for_scene(scene: Scene) -> Self {
         let chunks = scene.chunks::<C>();
-        let maximum_bounds = scene.maximum_bounds();
+        let mut maximum_bounds = scene.maximum_bounds();
+        maximum_bounds.0.add_scalar_mut(-0.1);
+        maximum_bounds.1.add_scalar_mut(0.1);
         Self {
             scene,
             chunks,
@@ -107,6 +115,8 @@ where
         }
     }
 
+    /// Simulate the given number of rays at the given time in this `Scene`,
+    /// then collect all the impulse responses.
     pub fn simulate_at_time(
         &self,
         time: u32,
@@ -120,9 +130,13 @@ where
             .collect()
     }
 
+    /// Launch a single ray into this `Scene`, and return its result.
+    /// The direction it is launched in is a random position in the unit cube,
+    /// which gets normalised in the ray's launch function.
     fn launch_ray(&self, time: u32, velocity: f32, sample_rate: f32) -> Vec<(f32, u32)> {
         let Emitter::Interpolated(emitter_coords, _) = self.scene.emitter.at_time(time) else {
-            todo!()
+            // this should not be able to happen
+            return vec![];
         };
         Ray::launch(
             // doesn't need to be a unit vector, Ray::launch() normalises this

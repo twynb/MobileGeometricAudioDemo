@@ -5,6 +5,7 @@ use crate::{
     scene::{CoordinateKeyframe, Emitter, Receiver, Scene, Surface},
 };
 
+/// Create a static cube primitive described by the given coordinates and material.
 #[must_use]
 #[allow(clippy::too_many_lines)]
 pub fn static_cube(
@@ -130,10 +131,12 @@ pub fn static_cube(
     ]
 }
 
+/// Representations of object primitives `SceneBuilder` can create.
 enum Object {
     StaticCube(Vector3<f32>, Vector3<f32>, Material),
 }
 
+/// A builder to easily create scenes with.
 pub struct SceneBuilder {
     objects: Vec<Object>,
     receiver_coords: Option<Vector3<f32>>,
@@ -144,10 +147,15 @@ pub struct SceneBuilder {
 }
 
 impl SceneBuilder {
+    /// Start building a new scene.
+    /// The initial scene has a receiver at (0, 0, 0) with radius 0.1,
+    /// an emitter at the same position
+    /// and no surfaces.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Add a static cube to the scene.
     #[allow(clippy::too_many_arguments)]
     pub fn with_static_cube(
         mut self,
@@ -167,35 +175,52 @@ impl SceneBuilder {
         self
     }
 
+    /// Set the coordinates for the receiver.
+    /// If coordinates or coordinate keyframes have previously been set,
+    /// they are discarded in favour of the new coordinates.
     pub fn with_receiver_at(mut self, x: f32, y: f32, z: f32) -> Self {
         self.receiver_coords = Some(Vector3::new(x, y, z));
         self.receiver_keyframes = None;
         self
     }
 
+    /// Set the coordinate keyframes for the receiver.
+    /// If coordinates or coordinate keyframes have previously been set,
+    /// they are discarded in favour of the new coordinate keyframes.
     pub fn with_receiver_keyframes(mut self, coords: Vec<CoordinateKeyframe>) -> Self {
         self.receiver_keyframes = Some(coords);
         self.receiver_coords = None;
         self
     }
 
+    /// Set the radius for the receiver.
     pub const fn with_receiver_radius(mut self, radius: f32) -> Self {
         self.receiver_radius = radius;
         self
     }
 
+    /// Set the coordinates for the emitter.
+    /// If coordinates or coordinate keyframes have previously been set,
+    /// they are discarded in favour of the new coordinates.
     pub fn with_emitter_at(mut self, x: f32, y: f32, z: f32) -> Self {
         self.emitter_coords = Some(Vector3::new(x, y, z));
         self.emitter_keyframes = None;
         self
     }
 
+    /// Set the coordinate keyframes for the emitter.
+    /// If coordinates or coordinate keyframes have previously been set,
+    /// they are discarded in favour of the new coordinate keyframes.
     pub fn with_emitter_keyframes(mut self, coords: Vec<CoordinateKeyframe>) -> Self {
         self.emitter_keyframes = Some(coords);
         self.emitter_coords = None;
         self
     }
 
+    /// Build the `Scene` described by the data passed into this `SceneBuilder`.
+    /// 
+    /// # Panics
+    /// * If somehow neither coordinate keyframes nor coordinates for a receiver/emitter are set. This shouldn't be able to happen.
     #[allow(clippy::option_if_let_else)]
     pub fn build(&self) -> Scene {
         let objects: Vec<Vec<Surface<3>>> = self

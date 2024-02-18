@@ -11,5 +11,5 @@ fn main() {
     println!(
         "{:?}",
         scene_data.simulate_at_time(0, 100000, DEFAULT_PROPAGATION_SPEED, DEFAULT_SAMPLE_RATE)
-    )
+    );
 }

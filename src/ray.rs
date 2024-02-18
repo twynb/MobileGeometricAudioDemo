@@ -8,7 +8,10 @@ use rand::random;
 use typenum::Unsigned;
 
 use crate::{
-    interpolation::Interpolation, intersection, scene::{Surface, SceneData}, DEFAULT_SAMPLE_RATE,
+    interpolation::Interpolation,
+    intersection,
+    scene::{SceneData, Surface},
+    DEFAULT_SAMPLE_RATE,
 };
 
 /// The normal speed of sound in air at 20 °C, in m/s.
@@ -65,6 +68,8 @@ pub struct Ray {
 }
 
 impl Ray {
+    /// Create a new ray with the given parameters.
+    /// This function is only relevant for testing purposes and shouldn't be used otherwise.
     pub const fn new(
         direction: Unit<Vector3<f32>>,
         origin: Vector3<f32>,
@@ -150,6 +155,7 @@ impl Ray {
                 None => self.energy = -1f32, // cancel the loop, we're out of bounds
                 Some((is_receiver, index, time, coords)) => {
                     if is_receiver {
+                        // do not change direction because we pass through receivers
                         result.push((self.energy, time));
                         allow_receiver = false;
                         self.origin = coords;
@@ -291,7 +297,11 @@ impl Ray {
         }
     }
 
-    ///
+    /// Check for an intersection in the current chunk,
+    /// then traverse to the next chunk.
+    /// If an intersection is found in the current chunk, return that.
+    /// If the next chunk would be outside the scene bounds, return accordingly.
+    /// Otherwise, continue.
     fn traverse_to_next_chunk<C>(
         &self,
         key: &mut i32,
@@ -328,6 +338,8 @@ impl Ray {
         IntersectionCheckResult::NoIntersection
     }
 
+    /// Check whether there are any intersections in the current chunk.
+    /// If the chunk does not contain anything, return out early.
     fn intersection_check_in_chunk<C>(
         &self,
         key: u32,
@@ -347,30 +359,76 @@ impl Ray {
         let (receivers, surfaces) = scene_data
             .chunks
             .objects_at_key_and_time(key, time_entry, time_exit);
-        let mut result: IntersectionCheckResult = IntersectionCheckResult::NoIntersection;
-        // Skip intersection checks with receiver if not allowed
-        if !receivers.is_empty() && allow_receiver {
-            // as of current we only have one receiver - this logic might change in the future
-            if let Some((time, coords)) = intersection::intersect_ray_and_receiver(
-                self,
-                &scene_data.scene.receiver,
-                time_entry,
-                time_exit,
-            ) {
-                result = IntersectionCheckResult::Found(true, 0, time, coords);
-            }
-        }
 
+        let result = if allow_receiver {
+            self.intersection_check_receiver_in_chunk(&receivers, scene_data, time_entry, time_exit)
+        } else {
+            IntersectionCheckResult::NoIntersection
+        };
+
+        self.intersection_check_surface_in_chunk(
+            &surfaces, scene_data, time_entry, time_exit, result,
+        )
+    }
+
+    /// Check if this ray intersects with the receiver inside this chunk.
+    /// If there is no receiver inside this chunk, skip the check.
+    fn intersection_check_receiver_in_chunk<C>(
+        &self,
+        receivers: &[usize],
+        scene_data: &SceneData<C>,
+        time_entry: u32,
+        time_exit: u32,
+    ) -> IntersectionCheckResult
+    where
+        C: Unsigned + Mul<C>,
+        <C as Mul>::Output: Mul<C>,
+        <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
+    {
+        if receivers.is_empty() {
+            return IntersectionCheckResult::NoIntersection;
+        }
+        // as of current we only have one receiver - this logic might change in the future
+        if let Some((time, coords)) = intersection::intersect_ray_and_receiver(
+            self,
+            &scene_data.scene.receiver,
+            time_entry,
+            time_exit,
+        ) {
+            return IntersectionCheckResult::Found(true, 0, time, coords);
+        }
+        IntersectionCheckResult::NoIntersection
+    }
+
+    /// Check if this ray intersects with surfaces inside this chunk.
+    /// Surfaces that the ray has last intersected with are skipped.
+    /// 
+    /// For surfaces the ray does intersect with, if the intersection
+    /// is earlier than previously found intersections (including the one from `result`),
+    /// replace `result` with it and eventually return the earliest intersection.
+    fn intersection_check_surface_in_chunk<C>(
+        &self,
+        surfaces: &[usize],
+        scene_data: &SceneData<C>,
+        time_entry: u32,
+        time_exit: u32,
+        mut result: IntersectionCheckResult,
+    ) -> IntersectionCheckResult
+    where
+        C: Unsigned + Mul<C>,
+        <C as Mul>::Output: Mul<C>,
+        <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
+    {
         for surface_index in surfaces {
             if let Some(last_index) = self.last_intersected_surface {
-                if last_index == surface_index {
+                if last_index == *surface_index {
                     // skip the last surface we bounced off of
                     continue;
                 }
             }
             let Some((time, coords)) = intersection::intersect_ray_and_surface(
                 self,
-                &scene_data.scene.surfaces[surface_index],
+                &scene_data.scene.surfaces[*surface_index],
                 time_entry,
                 time_exit,
             ) else {
@@ -383,13 +441,16 @@ impl Ray {
                 }
                 _ => true,
             } {
-                result = IntersectionCheckResult::Found(false, surface_index, time, coords);
+                result = IntersectionCheckResult::Found(false, *surface_index, time, coords);
             }
         }
 
         result
     }
 
+    /// Initialise the chunk traversal data.
+    /// We first calculate the key of the chunk the ray starts in,
+    /// then initialise the `ChunkTraversalData` with that and the individual dimensions.
     fn init_chunk_traversal_data<C>(&self, scene_data: &SceneData<C>) -> ChunkTraversalData
     where
         C: Unsigned + Mul<C>,
@@ -450,6 +511,7 @@ impl Ray {
     }
 }
 
+/// Initialise the chunk traversal data for a single dimension.
 #[allow(clippy::too_many_arguments)]
 fn init_chunk_traversal_data_dimension(
     direction_cosine: f32,
