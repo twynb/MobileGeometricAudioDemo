@@ -15,3 +15,4 @@ pub mod scene_bounds;
 pub mod scene_builder;
 mod test_utils;
 pub mod impulse_response;
+pub mod bounce;

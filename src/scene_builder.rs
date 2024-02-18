@@ -1,8 +1,7 @@
 use nalgebra::Vector3;
 
 use crate::{
-    materials::{Material, MATERIAL_CONCRETE_WALL},
-    scene::{CoordinateKeyframe, Emitter, Receiver, Scene, Surface},
+    bounce::EmissionType, materials::{Material, MATERIAL_CONCRETE_WALL}, scene::{CoordinateKeyframe, Emitter, Receiver, Scene, Surface}
 };
 
 /// Create a static cube primitive described by the given coordinates and material.
@@ -246,9 +245,9 @@ impl SceneBuilder {
         };
 
         let emitter = if let Some(coords) = self.emitter_coords {
-            Emitter::Interpolated(coords, 0)
+            Emitter::Interpolated(coords, 0, EmissionType::Random)
         } else if let Some(keyframes) = &self.emitter_keyframes {
-            Emitter::Keyframes(keyframes.clone())
+            Emitter::Keyframes(keyframes.clone(), EmissionType::Random)
         } else {
             panic!("Somehow, neither emitter_keyframes nor emitter_coords was set. This shouldn't happen.")
         };

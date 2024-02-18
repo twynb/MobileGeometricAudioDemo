@@ -2,12 +2,12 @@ use std::ops::Mul;
 
 use generic_array::ArrayLength;
 use nalgebra::Vector3;
-use rand::random;
 use rayon::prelude::*;
 use typenum::Unsigned;
 use wav::BitDepth;
 
 use crate::{
+    bounce::EmissionType,
     chunk::Chunks,
     impulse_response::{self, to_impulse_response},
     interpolation::Interpolation,
@@ -27,8 +27,8 @@ pub struct CoordinateKeyframe {
 /// Either has its separate keyframes (sorted by time) or a single interpolated keyframe at a given time.
 #[derive(Clone, PartialEq, Debug)]
 pub enum Emitter {
-    Keyframes(Vec<CoordinateKeyframe>),
-    Interpolated(Vector3<f32>, u32),
+    Keyframes(Vec<CoordinateKeyframe>, EmissionType),
+    Interpolated(Vector3<f32>, u32, EmissionType),
 }
 
 /// Sound receiver.
@@ -136,21 +136,33 @@ where
                 number_of_rays,
                 velocity,
                 sample_rate,
-                scaling_factor
+                scaling_factor,
             )),
             BitDepth::Sixteen(data) => BitDepth::Sixteen(self.simulate_for_time_span_internal(
                 data,
                 number_of_rays,
                 velocity,
                 sample_rate,
-                scaling_factor
+                scaling_factor,
             )),
-            BitDepth::TwentyFour(data) => BitDepth::TwentyFour(
-                self.simulate_for_time_span_internal(data, number_of_rays, velocity, sample_rate, scaling_factor),
-            ),
-            BitDepth::ThirtyTwoFloat(data) => BitDepth::ThirtyTwoFloat(
-                self.simulate_for_time_span_internal(data, number_of_rays, velocity, sample_rate, scaling_factor),
-            ),
+            BitDepth::TwentyFour(data) => {
+                BitDepth::TwentyFour(self.simulate_for_time_span_internal(
+                    data,
+                    number_of_rays,
+                    velocity,
+                    sample_rate,
+                    scaling_factor,
+                ))
+            }
+            BitDepth::ThirtyTwoFloat(data) => {
+                BitDepth::ThirtyTwoFloat(self.simulate_for_time_span_internal(
+                    data,
+                    number_of_rays,
+                    velocity,
+                    sample_rate,
+                    scaling_factor,
+                ))
+            }
             BitDepth::Empty => BitDepth::Empty,
         }
     }
@@ -173,7 +185,14 @@ where
             .par_chunks(1000)
             .map(|chunk| {
                 println!("{}", chunk[0].0);
-                self.simulate_for_chunk(data.len(), chunk, number_of_rays, velocity, sample_rate, scaling_factor)
+                self.simulate_for_chunk(
+                    data.len(),
+                    chunk,
+                    number_of_rays,
+                    velocity,
+                    sample_rate,
+                    scaling_factor,
+                )
             })
             .collect();
         let max_len = buffers.iter().max_by_key(|vec| vec.len()).unwrap().len();
@@ -203,7 +222,8 @@ where
         for (idx, value) in chunk {
             let impulse_response =
                 self.simulate_at_time(*idx as u32, number_of_rays, velocity, sample_rate);
-            let buffer_to_add = impulse_response::apply_to_sample(&impulse_response, *value, *idx, scaling_factor);
+            let buffer_to_add =
+                impulse_response::apply_to_sample(&impulse_response, *value, *idx, scaling_factor);
             if buffer.len() < buffer_to_add.len() {
                 buffer.resize(buffer_to_add.len(), 0f32);
             }
@@ -234,17 +254,13 @@ where
     /// The direction it is launched in is a random position in the unit cube,
     /// which gets normalised in the ray's launch function.
     fn launch_ray(&self, time: u32, velocity: f32, sample_rate: f32) -> Vec<(f32, u32)> {
-        let Emitter::Interpolated(emitter_coords, _) = self.scene.emitter.at_time(time) else {
+        let Emitter::Interpolated(emitter_coords, _, emission_type) = self.scene.emitter.at_time(time) else {
             // this should not be able to happen
             return vec![];
         };
         Ray::launch(
             // doesn't need to be a unit vector, Ray::launch() normalises this
-            Vector3::new(
-                random::<f32>().mul_add(2f32, -1f32),
-                random::<f32>().mul_add(2f32, -1f32),
-                random::<f32>().mul_add(2f32, -1f32),
-            ),
+            emission_type.get_direction(),
             emitter_coords,
             time,
             velocity,

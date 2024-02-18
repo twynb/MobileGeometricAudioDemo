@@ -3,10 +3,7 @@ use std::collections::HashMap;
 use generic_array::GenericArray;
 
 use demo::{
-    chunk::{Chunks, SceneChunk, TimedChunkEntry},
-    materials::MATERIAL_CONCRETE_WALL,
-    scene::{CoordinateKeyframe, Emitter, Receiver, Scene, Surface, SurfaceKeyframe},
-    scene_builder,
+    bounce::EmissionType, chunk::{Chunks, SceneChunk, TimedChunkEntry}, materials::MATERIAL_CONCRETE_WALL, scene::{CoordinateKeyframe, Emitter, Receiver, Scene, Surface, SurfaceKeyframe}, scene_builder
 };
 use nalgebra::Vector3;
 
@@ -17,7 +14,7 @@ fn empty_scene() -> Scene {
         emitter: Emitter::Keyframes(vec![CoordinateKeyframe {
             time: 0,
             coords: Vector3::new(0f32, 0f32, 0f32),
-        }]),
+        }], EmissionType::Random),
     }
 }
 
@@ -121,7 +118,7 @@ fn chunks_static_scene_moving_receiver() {
             Vector3::new(10f32, 10f32, 10f32),
             MATERIAL_CONCRETE_WALL,
         ),
-        emitter: Emitter::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0),
+        emitter: Emitter::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0, EmissionType::Random),
     };
     let result = scene.chunks::<typenum::U10>();
     assert_eq!(
@@ -284,7 +281,7 @@ fn chunks_moving_scene_and_receiver() {
             0.1,
         ),
         surfaces,
-        emitter: Emitter::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0),
+        emitter: Emitter::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0, EmissionType::Random),
     };
     let result = scene.chunks::<typenum::U10>();
     assert_eq!(

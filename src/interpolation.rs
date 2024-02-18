@@ -228,9 +228,9 @@ fn calculate_interp_position<T: Num + NumCast + Copy>(
 impl Interpolation for Emitter {
     fn at_time(&self, time: u32) -> Self {
         match self {
-            Self::Interpolated(_keyframes, _time) => self.clone(),
-            Self::Keyframes(keyframes) => {
-                Self::Interpolated(interpolate_coordinate_keyframes(keyframes, time), time)
+            Self::Interpolated(_keyframes, _time, _type) => self.clone(),
+            Self::Keyframes(keyframes, emission_type) => {
+                Self::Interpolated(interpolate_coordinate_keyframes(keyframes, time), time, *emission_type)
             }
         }
     }

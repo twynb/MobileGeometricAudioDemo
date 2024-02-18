@@ -1,3 +1,4 @@
+use demo::bounce::EmissionType;
 use demo::interpolation::Interpolation;
 use demo::materials::MATERIAL_CONCRETE_WALL;
 use demo::scene::{CoordinateKeyframe, Emitter, Receiver, Surface, SurfaceKeyframe};
@@ -68,10 +69,10 @@ fn interpolate_emitter() {
             time: 10,
             coords: Vector3::new(30f32, 20f32, 50f32),
         },
-    ]);
+    ], EmissionType::Random);
     let result = emitter.at_time(6);
     assert_eq!(
-        Emitter::Interpolated(Vector3::new(30f32, 36f32, 9.999999f32,), 6),
+        Emitter::Interpolated(Vector3::new(30f32, 36f32, 9.999999f32,), 6, EmissionType::Random),
         result
     );
 }

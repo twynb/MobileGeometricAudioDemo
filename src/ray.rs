@@ -4,14 +4,10 @@ use approx::abs_diff_eq;
 use generic_array::ArrayLength;
 use nalgebra::{base::Unit, Vector3};
 use num::{Num, NumCast};
-use rand::random;
 use typenum::Unsigned;
 
 use crate::{
-    interpolation::Interpolation,
-    intersection,
-    scene::{SceneData, Surface},
-    DEFAULT_SAMPLE_RATE,
+    bounce::{bounce_off_surface_with_normal, random_direction_in_hemisphere}, interpolation::Interpolation, intersection, scene::{SceneData, Surface}, DEFAULT_SAMPLE_RATE
 };
 
 /// The normal speed of sound in air at 20 °C, in m/s.
@@ -203,23 +199,9 @@ impl Ray {
         }
         if material.is_bounce_diffuse() {
             // new_direction doesn't have to be a unit vector yet, we'll normalise it later
-            new_direction = Vector3::new(
-                random::<f32>().mul_add(2f32, -1f32),
-                random::<f32>().mul_add(2f32, -1f32),
-                random::<f32>().mul_add(2f32, -1f32),
-            );
-            // new_direction needs to be in a hemisphere on the surface (can't bounce behind the surface)
-            // => if dot product with normal is negative, it's going behind the surface
-            // we also don't want a perfectly orthogonal bounce, so do <= rather than =
-            while new_direction.dot(&normal) <= 0f32 {
-                new_direction = Vector3::new(
-                    random::<f32>().mul_add(2f32, -1f32),
-                    random::<f32>().mul_add(2f32, -1f32),
-                    random::<f32>().mul_add(2f32, -1f32),
-                );
-            }
+            new_direction = random_direction_in_hemisphere(&normal);
         } else {
-            new_direction -= 2f32 * (self.direction.dot(&normal)) * normal;
+            bounce_off_surface_with_normal(&mut new_direction, &normal);
         }
 
         self.time = time;

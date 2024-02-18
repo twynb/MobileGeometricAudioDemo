@@ -86,10 +86,10 @@ impl MaximumBounds for Scene {
             }
         };
         match &self.emitter {
-            Emitter::Interpolated(coordinates, _time) => {
+            Emitter::Interpolated(coordinates, _time, _emission_type) => {
                 update_maximum_bounds(coordinates, &mut min_coords, &mut max_coords, Some(0.1f32));
             }
-            Emitter::Keyframes(keyframes) => {
+            Emitter::Keyframes(keyframes, _emission_type) => {
                 for keyframe in keyframes {
                     update_maximum_bounds(
                         &keyframe.coords,
@@ -100,7 +100,6 @@ impl MaximumBounds for Scene {
                 }
             }
         };
-
 
         (min_coords, max_coords)
     }
@@ -122,9 +121,11 @@ mod tests {
     use nalgebra::Vector3;
 
     use super::MaximumBounds;
-    use crate::{materials::MATERIAL_CONCRETE_WALL, scene::{
-        CoordinateKeyframe, Emitter, Receiver, Scene, Surface, SurfaceKeyframe,
-    }};
+    use crate::{
+        bounce::EmissionType,
+        materials::MATERIAL_CONCRETE_WALL,
+        scene::{CoordinateKeyframe, Emitter, Receiver, Scene, Surface, SurfaceKeyframe},
+    };
 
     fn empty_scene() -> Scene {
         Scene {
@@ -136,10 +137,13 @@ mod tests {
                 0.1f32,
             ),
             surfaces: vec![],
-            emitter: Emitter::Keyframes(vec![CoordinateKeyframe {
-                time: 0,
-                coords: Vector3::new(0f32, 0f32, 0f32),
-            }]),
+            emitter: Emitter::Keyframes(
+                vec![CoordinateKeyframe {
+                    time: 0,
+                    coords: Vector3::new(0f32, 0f32, 0f32),
+                }],
+                EmissionType::Random,
+            ),
         }
     }
 
@@ -172,16 +176,19 @@ mod tests {
                 0.1f32,
             ),
             surfaces: vec![],
-            emitter: Emitter::Keyframes(vec![
-                CoordinateKeyframe {
-                    time: 0,
-                    coords: Vector3::new(0f32, 0f32, 0f32),
-                },
-                CoordinateKeyframe {
-                    time: 3,
-                    coords: Vector3::new(-10f32, -20f32, -50f32),
-                },
-            ]),
+            emitter: Emitter::Keyframes(
+                vec![
+                    CoordinateKeyframe {
+                        time: 0,
+                        coords: Vector3::new(0f32, 0f32, 0f32),
+                    },
+                    CoordinateKeyframe {
+                        time: 3,
+                        coords: Vector3::new(-10f32, -20f32, -50f32),
+                    },
+                ],
+                EmissionType::Random,
+            ),
         };
 
         assert_eq!(
@@ -210,50 +217,56 @@ mod tests {
                 0.1,
             ),
             surfaces: vec![
-                Surface::Keyframes(vec![
-                    SurfaceKeyframe {
-                        time: 5,
-                        coords: [
-                            Vector3::new(-10f32, -20f32, -30f32),
-                            Vector3::new(0f32, 2f32, 16f32),
-                            Vector3::new(0f32, 2f32, 15f32),
-                        ],
-                    },
-                    SurfaceKeyframe {
-                        time: 10,
-                        coords: [
-                            Vector3::new(3f32, 2f32, 5f32),
-                            Vector3::new(8f32, 10f32, 12f32),
-                            Vector3::new(0f32, 2f32, 16f32),
-                        ],
-                    },
-                ], MATERIAL_CONCRETE_WALL),
-                Surface::Keyframes(vec![
-                    SurfaceKeyframe {
-                        time: 5,
-                        coords: [
-                            Vector3::new(0f32, 0f32, 0f32),
-                            Vector3::new(0f32, 2f32, 16f32),
-                            Vector3::new(0f32, 4f32, 16f32),
-                        ],
-                    },
-                    SurfaceKeyframe {
-                        time: 10,
-                        coords: [
-                            Vector3::new(3f32, 2f32, 5f32),
-                            Vector3::new(8f32, 10f32, 12f32),
-                            Vector3::new(0f32, 4f32, 16f32),
-                        ],
-                    },
-                    SurfaceKeyframe {
-                        time: 15,
-                        coords: [
-                            Vector3::new(0f32, 0f32, 0f32),
-                            Vector3::new(0f32, 2f32, 16f32),
-                            Vector3::new(0f32, 4f32, 16f32),
-                        ],
-                    },
-                ], MATERIAL_CONCRETE_WALL),
+                Surface::Keyframes(
+                    vec![
+                        SurfaceKeyframe {
+                            time: 5,
+                            coords: [
+                                Vector3::new(-10f32, -20f32, -30f32),
+                                Vector3::new(0f32, 2f32, 16f32),
+                                Vector3::new(0f32, 2f32, 15f32),
+                            ],
+                        },
+                        SurfaceKeyframe {
+                            time: 10,
+                            coords: [
+                                Vector3::new(3f32, 2f32, 5f32),
+                                Vector3::new(8f32, 10f32, 12f32),
+                                Vector3::new(0f32, 2f32, 16f32),
+                            ],
+                        },
+                    ],
+                    MATERIAL_CONCRETE_WALL,
+                ),
+                Surface::Keyframes(
+                    vec![
+                        SurfaceKeyframe {
+                            time: 5,
+                            coords: [
+                                Vector3::new(0f32, 0f32, 0f32),
+                                Vector3::new(0f32, 2f32, 16f32),
+                                Vector3::new(0f32, 4f32, 16f32),
+                            ],
+                        },
+                        SurfaceKeyframe {
+                            time: 10,
+                            coords: [
+                                Vector3::new(3f32, 2f32, 5f32),
+                                Vector3::new(8f32, 10f32, 12f32),
+                                Vector3::new(0f32, 4f32, 16f32),
+                            ],
+                        },
+                        SurfaceKeyframe {
+                            time: 15,
+                            coords: [
+                                Vector3::new(0f32, 0f32, 0f32),
+                                Vector3::new(0f32, 2f32, 16f32),
+                                Vector3::new(0f32, 4f32, 16f32),
+                            ],
+                        },
+                    ],
+                    MATERIAL_CONCRETE_WALL,
+                ),
             ],
             emitter: Emitter::Keyframes(vec![
                 CoordinateKeyframe {
@@ -264,7 +277,7 @@ mod tests {
                     time: 3,
                     coords: Vector3::new(-10f32, -20f32, -50f32),
                 },
-            ]),
+            ], EmissionType::Random),
         };
 
         assert_eq!(

@@ -1,4 +1,5 @@
 use demo::{
+    bounce::EmissionType,
     materials::{Material, MATERIAL_CONCRETE_WALL},
     ray::{Ray, DEFAULT_PROPAGATION_SPEED},
     scene::{Emitter, Receiver, Scene, SceneData, Surface},
@@ -23,7 +24,7 @@ fn directly_hitting_receiver() {
             },
         )],
         receiver: Receiver::Interpolated(Vector3::new(20f32, 0f32, 0f32), 0.1f32, 0),
-        emitter: Emitter::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0),
+        emitter: Emitter::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0, EmissionType::Random),
     };
     let chunks = scene.chunks::<typenum::U10>();
     let maximum_bounds = scene.maximum_bounds();
@@ -62,7 +63,7 @@ fn hitting_receiver_after_one_bounce() {
             },
         )],
         receiver: Receiver::Interpolated(Vector3::new(20f32, 0f32, 0f32), 0.1f32, 0),
-        emitter: Emitter::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0),
+        emitter: Emitter::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0, EmissionType::Random),
     };
     let chunks = scene.chunks::<typenum::U10>();
     let maximum_bounds = scene.maximum_bounds();
@@ -94,7 +95,7 @@ fn unreachable_receiver() {
             MATERIAL_CONCRETE_WALL,
         ),
         receiver: Receiver::Interpolated(Vector3::new(20f32, 0f32, 0f32), 0.1f32, 0),
-        emitter: Emitter::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0),
+        emitter: Emitter::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0, EmissionType::Random),
     };
     let chunks = scene.chunks::<typenum::U10>();
     let maximum_bounds = scene.maximum_bounds();
@@ -133,7 +134,7 @@ fn hitting_receiver_before_and_after_one_bounce() {
             },
         )],
         receiver: Receiver::Interpolated(Vector3::new(20f32, 0f32, 0f32), 0.1f32, 0),
-        emitter: Emitter::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0),
+        emitter: Emitter::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0, EmissionType::Random),
     };
     let chunks = scene.chunks::<typenum::U10>();
     let maximum_bounds = scene.maximum_bounds();
