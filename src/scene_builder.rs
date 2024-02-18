@@ -1,7 +1,7 @@
 use nalgebra::Vector3;
 
 use crate::{
-    materials::Material,
+    materials::{Material, MATERIAL_CONCRETE_WALL},
     scene::{CoordinateKeyframe, Emitter, Receiver, Scene, Surface},
 };
 
@@ -218,7 +218,7 @@ impl SceneBuilder {
     }
 
     /// Build the `Scene` described by the data passed into this `SceneBuilder`.
-    /// 
+    ///
     /// # Panics
     /// * If somehow neither coordinate keyframes nor coordinates for a receiver/emitter are set. This shouldn't be able to happen.
     #[allow(clippy::option_if_let_else)]
@@ -272,4 +272,19 @@ impl Default for SceneBuilder {
             emitter_keyframes: None,
         }
     }
+}
+
+pub fn static_cube_scene() -> Scene {
+    SceneBuilder::new()
+        .with_static_cube(
+            -10f32,
+            -10f32,
+            -10f32,
+            10f32,
+            10f32,
+            10f32,
+            MATERIAL_CONCRETE_WALL,
+        )
+        .with_emitter_at(0f32, 0f32, 1.2f32)
+        .build()
 }

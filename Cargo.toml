@@ -11,6 +11,9 @@ path = "src/main.rs"
 name = "demo"
 path = "src/lib.rs"
 
+[profile.release]
+codegen-units = 1
+lto = "fat"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lints.clippy]
@@ -38,3 +41,4 @@ num = "0.4.1"
 rand = "0.8.5"
 rayon = "1.8.1"
 typenum = "1.17.0"
+wav = "1.0.0"

@@ -5,9 +5,14 @@ use nalgebra::Vector3;
 use rand::random;
 use rayon::prelude::*;
 use typenum::Unsigned;
+use wav::BitDepth;
 
 use crate::{
-    chunk::Chunks, interpolation::Interpolation, materials::Material, ray::Ray,
+    chunk::Chunks,
+    impulse_response::{self, to_impulse_response},
+    interpolation::Interpolation,
+    materials::Material,
+    ray::Ray,
     scene_bounds::MaximumBounds,
 };
 
@@ -115,6 +120,101 @@ where
         }
     }
 
+    /// Simulate the given number of rays in this `Scene` for each sample in the given time span,
+    /// then collect all the impulse responses.
+    pub fn simulate_for_time_span(
+        &self,
+        input_data: &BitDepth,
+        number_of_rays: u32,
+        velocity: f32,
+        sample_rate: f32,
+        scaling_factor: f32,
+    ) -> BitDepth {
+        match input_data {
+            BitDepth::Eight(data) => BitDepth::Eight(self.simulate_for_time_span_internal(
+                data,
+                number_of_rays,
+                velocity,
+                sample_rate,
+                scaling_factor
+            )),
+            BitDepth::Sixteen(data) => BitDepth::Sixteen(self.simulate_for_time_span_internal(
+                data,
+                number_of_rays,
+                velocity,
+                sample_rate,
+                scaling_factor
+            )),
+            BitDepth::TwentyFour(data) => BitDepth::TwentyFour(
+                self.simulate_for_time_span_internal(data, number_of_rays, velocity, sample_rate, scaling_factor),
+            ),
+            BitDepth::ThirtyTwoFloat(data) => BitDepth::ThirtyTwoFloat(
+                self.simulate_for_time_span_internal(data, number_of_rays, velocity, sample_rate, scaling_factor),
+            ),
+            BitDepth::Empty => BitDepth::Empty,
+        }
+    }
+
+    fn simulate_for_time_span_internal<
+        T: num::Num + num::NumCast + Clone + Copy + Sync + Send + std::fmt::Debug,
+    >(
+        &self,
+        data: &[T],
+        number_of_rays: u32,
+        velocity: f32,
+        sample_rate: f32,
+        scaling_factor: f32,
+    ) -> Vec<T> {
+        let buffers: Vec<Vec<f32>> = data
+            .iter()
+            .enumerate()
+            .map(|(idx, val)| (idx, *val))
+            .collect::<Vec<(usize, T)>>()
+            .par_chunks(1000)
+            .map(|chunk| {
+                println!("{}", chunk[0].0);
+                self.simulate_for_chunk(data.len(), chunk, number_of_rays, velocity, sample_rate, scaling_factor)
+            })
+            .collect();
+        let max_len = buffers.iter().max_by_key(|vec| vec.len()).unwrap().len();
+        let mut buffer = vec![0f32; max_len];
+        for buffer_to_add in &buffers {
+            buffer
+                .iter_mut()
+                .zip(buffer_to_add)
+                .for_each(|(val, to_add)| *val += *to_add);
+        }
+        buffer
+            .iter()
+            .map(|val| num::cast::<f32, T>(*val).unwrap())
+            .collect()
+    }
+
+    fn simulate_for_chunk<T: num::Num + num::NumCast + Clone + Copy + Sync + Send>(
+        &self,
+        data_len: usize,
+        chunk: &[(usize, T)],
+        number_of_rays: u32,
+        velocity: f32,
+        sample_rate: f32,
+        scaling_factor: f32,
+    ) -> Vec<f32> {
+        let mut buffer: Vec<f32> = vec![0f32; data_len];
+        for (idx, value) in chunk {
+            let impulse_response =
+                self.simulate_at_time(*idx as u32, number_of_rays, velocity, sample_rate);
+            let buffer_to_add = impulse_response::apply_to_sample(&impulse_response, *value, *idx, scaling_factor);
+            if buffer.len() < buffer_to_add.len() {
+                buffer.resize(buffer_to_add.len(), 0f32);
+            }
+            buffer
+                .iter_mut()
+                .zip(&buffer_to_add)
+                .for_each(|(val, to_add)| *val += *to_add);
+        }
+        buffer
+    }
+
     /// Simulate the given number of rays at the given time in this `Scene`,
     /// then collect all the impulse responses.
     pub fn simulate_at_time(
@@ -123,11 +223,11 @@ where
         number_of_rays: u32,
         velocity: f32,
         sample_rate: f32,
-    ) -> Vec<(f32, u32)> {
-        (0..number_of_rays)
-            .into_par_iter()
+    ) -> Vec<f32> {
+        let rt_results: Vec<(f32, u32)> = (0..number_of_rays)
             .flat_map(|_| self.launch_ray(time, velocity, sample_rate))
-            .collect()
+            .collect();
+        to_impulse_response(&rt_results, number_of_rays)
     }
 
     /// Launch a single ray into this `Scene`, and return its result.

@@ -17,7 +17,7 @@ use crate::{
 /// The normal speed of sound in air at 20 °C, in m/s.
 pub const DEFAULT_PROPAGATION_SPEED: f32 = 343.2;
 /// The threshold below which rays get discarded.
-const ENERGY_THRESHOLD: f32 = 0.00005;
+const ENERGY_THRESHOLD: f32 = 0.000001;
 
 /// The result after checking for an intersection.
 /// * `Found`: found an intersecting surface.
