@@ -9,11 +9,11 @@ use nalgebra::Vector3;
 
 fn empty_scene() -> Scene {
     Scene {
-        receiver: Receiver::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0.1, 0),
+        receiver: Receiver::Interpolated(Vector3::new(0f64, 0f64, 0f64), 0.1, 0),
         surfaces: vec![],
         emitter: Emitter::Keyframes(vec![CoordinateKeyframe {
             time: 0,
-            coords: Vector3::new(0f32, 0f32, 0f32),
+            coords: Vector3::new(0f64, 0f64, 0f64),
         }], EmissionType::Random),
     }
 }
@@ -48,10 +48,10 @@ fn chunks_empty_scene() {
     let scene = empty_scene();
     let result = scene.chunks::<typenum::U10>();
     assert_eq!(
-        (0.04f32, 0.04f32, 0.04f32),
+        (0.04f64, 0.04f64, 0.04f64),
         (result.size_x, result.size_y, result.size_z)
     );
-    assert_eq!(Vector3::new(-0.2f32, -0.2f32, -0.2f32), result.chunk_starts);
+    assert_eq!(Vector3::new(-0.2f64, -0.2f64, -0.2f64), result.chunk_starts);
 
     let mut set_chunks: GenericArray<bool, typenum::U1000> = GenericArray::default();
     for x in 2..8 {
@@ -86,7 +86,7 @@ fn chunks_empty_scene() {
         size_x: 0.04,
         size_y: 0.04,
         size_z: 0.04,
-        chunk_starts: Vector3::new(-0.2f32, -0.2f32, -0.2f32),
+        chunk_starts: Vector3::new(-0.2f64, -0.2f64, -0.2f64),
     };
     assert_eq!(expected, result);
 }
@@ -100,33 +100,33 @@ fn chunks_static_scene_moving_receiver() {
             vec![
                 CoordinateKeyframe {
                     time: 10,
-                    coords: Vector3::new(-1f32, -1f32, -1f32),
+                    coords: Vector3::new(-1f64, -1f64, -1f64),
                 },
                 CoordinateKeyframe {
                     time: 20,
-                    coords: Vector3::new(1f32, -1f32, 0f32),
+                    coords: Vector3::new(1f64, -1f64, 0f64),
                 },
                 CoordinateKeyframe {
                     time: 40,
-                    coords: Vector3::new(1f32, 1f32, 1f32),
+                    coords: Vector3::new(1f64, 1f64, 1f64),
                 },
             ],
             0.1,
         ),
         surfaces: scene_builder::static_cube(
-            Vector3::new(-10f32, -10f32, -10f32),
-            Vector3::new(10f32, 10f32, 10f32),
+            Vector3::new(-10f64, -10f64, -10f64),
+            Vector3::new(10f64, 10f64, 10f64),
             MATERIAL_CONCRETE_WALL,
         ),
-        emitter: Emitter::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0, EmissionType::Random),
+        emitter: Emitter::Interpolated(Vector3::new(0f64, 0f64, 0f64), 0, EmissionType::Random),
     };
     let result = scene.chunks::<typenum::U10>();
     assert_eq!(
-        (2.02f32, 2.02f32, 2.02f32),
+        (2.02f64, 2.02f64, 2.02f64),
         (result.size_x, result.size_y, result.size_z)
     );
     assert_eq!(
-        Vector3::new(-10.1f32, -10.1f32, -10.1f32),
+        Vector3::new(-10.1f64, -10.1f64, -10.1f64),
         result.chunk_starts
     );
 
@@ -201,7 +201,7 @@ fn chunks_static_scene_moving_receiver() {
         size_x: 2.02,
         size_y: 2.02,
         size_z: 2.02,
-        chunk_starts: Vector3::new(-10.1f32, -10.1f32, -10.1f32),
+        chunk_starts: Vector3::new(-10.1f64, -10.1f64, -10.1f64),
     };
 
     for x in 0..10 {
@@ -237,8 +237,8 @@ fn chunks_static_scene_moving_receiver() {
 #[test]
 fn chunks_moving_scene_and_receiver() {
     let mut surfaces = scene_builder::static_cube(
-        Vector3::new(-10f32, -10f32, -10f32),
-        Vector3::new(10f32, 10f32, 10f32),
+        Vector3::new(-10f64, -10f64, -10f64),
+        Vector3::new(10f64, 10f64, 10f64),
         MATERIAL_CONCRETE_WALL,
     );
     surfaces.push(Surface::Keyframes(
@@ -246,17 +246,17 @@ fn chunks_moving_scene_and_receiver() {
             SurfaceKeyframe {
                 time: 20,
                 coords: [
-                    Vector3::new(2f32, 2f32, 2f32),
-                    Vector3::new(2f32, 2f32, 3f32),
-                    Vector3::new(2f32, 3f32, 2f32),
+                    Vector3::new(2f64, 2f64, 2f64),
+                    Vector3::new(2f64, 2f64, 3f64),
+                    Vector3::new(2f64, 3f64, 2f64),
                 ],
             },
             SurfaceKeyframe {
                 time: 500,
                 coords: [
-                    Vector3::new(6f32, 6f32, 6f32),
-                    Vector3::new(6f32, 6f32, 7f32),
-                    Vector3::new(6f32, 7f32, 6f32),
+                    Vector3::new(6f64, 6f64, 6f64),
+                    Vector3::new(6f64, 6f64, 7f64),
+                    Vector3::new(6f64, 7f64, 6f64),
                 ],
             },
         ],
@@ -267,29 +267,29 @@ fn chunks_moving_scene_and_receiver() {
             vec![
                 CoordinateKeyframe {
                     time: 10,
-                    coords: Vector3::new(-1f32, -1f32, -1f32),
+                    coords: Vector3::new(-1f64, -1f64, -1f64),
                 },
                 CoordinateKeyframe {
                     time: 20,
-                    coords: Vector3::new(1f32, -1f32, 0f32),
+                    coords: Vector3::new(1f64, -1f64, 0f64),
                 },
                 CoordinateKeyframe {
                     time: 40,
-                    coords: Vector3::new(1f32, 1f32, 1f32),
+                    coords: Vector3::new(1f64, 1f64, 1f64),
                 },
             ],
             0.1,
         ),
         surfaces,
-        emitter: Emitter::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0, EmissionType::Random),
+        emitter: Emitter::Interpolated(Vector3::new(0f64, 0f64, 0f64), 0, EmissionType::Random),
     };
     let result = scene.chunks::<typenum::U10>();
     assert_eq!(
-        (2.02f32, 2.02f32, 2.02f32),
+        (2.02f64, 2.02f64, 2.02f64),
         (result.size_x, result.size_y, result.size_z)
     );
     assert_eq!(
-        Vector3::new(-10.1f32, -10.1f32, -10.1f32),
+        Vector3::new(-10.1f64, -10.1f64, -10.1f64),
         result.chunk_starts
     );
 
@@ -376,7 +376,7 @@ fn chunks_moving_scene_and_receiver() {
         size_x: 2.02,
         size_y: 2.02,
         size_z: 2.02,
-        chunk_starts: Vector3::new(-10.1f32, -10.1f32, -10.1f32),
+        chunk_starts: Vector3::new(-10.1f64, -10.1f64, -10.1f64),
     };
 
     for x in 0..10 {

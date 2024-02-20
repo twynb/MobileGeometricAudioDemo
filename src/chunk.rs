@@ -106,11 +106,11 @@ where
     pub set_chunks: GenericArray<bool, Cube<C>>,
     /// The map of chunks holding actual data.
     pub chunks: HashMap<u32, SceneChunk>,
-    pub size_x: f32,
-    pub size_y: f32,
-    pub size_z: f32,
+    pub size_x: f64,
+    pub size_y: f64,
+    pub size_z: f64,
     /// The coordinates for the lower bound of the first chunk, used to calculate which chunk a coordinate is in.
-    pub chunk_starts: Vector3<f32>,
+    pub chunk_starts: Vector3<f64>,
 }
 
 impl<C> Chunks<C>
@@ -133,16 +133,16 @@ where
     /// let chunks: Chunks<U10> = Chunks {
     ///     set_chunks: GenericArray::default(),
     ///     chunks: HashMap::new(),
-    ///     size_x: 0.1f32,
-    ///     size_y: 0.1f32,
-    ///     size_z: 0.1f32,
-    ///     chunk_starts: Vector3::new(0f32, 0f32, 0f32),
+    ///     size_x: 0.1f64,
+    ///     size_y: 0.1f64,
+    ///     size_z: 0.1f64,
+    ///     chunk_starts: Vector3::new(0f64, 0f64, 0f64),
     /// };
-    /// assert_eq!((0, 0, 0), chunks.coords_to_chunk_index(&Vector3::new(0f32, 0f32, 0f32)));
-    /// assert_eq!((1, 1, 1), chunks.coords_to_chunk_index(&Vector3::new(0.1f32, 0.11f32, 0.13f32)));
-    /// assert_eq!((9, 9, 8), chunks.coords_to_chunk_index(&Vector3::new(0.9f32, 0.98f32, 0.82f32)));
+    /// assert_eq!((0, 0, 0), chunks.coords_to_chunk_index(&Vector3::new(0f64, 0f64, 0f64)));
+    /// assert_eq!((1, 1, 1), chunks.coords_to_chunk_index(&Vector3::new(0.1f64, 0.11f64, 0.13f64)));
+    /// assert_eq!((9, 9, 8), chunks.coords_to_chunk_index(&Vector3::new(0.9f64, 0.98f64, 0.82f64)));
     /// ```
-    pub fn coords_to_chunk_index(&self, coords: &Vector3<f32>) -> (u32, u32, u32) {
+    pub fn coords_to_chunk_index(&self, coords: &Vector3<f64>) -> (u32, u32, u32) {
         coords_to_chunk_index(coords, self)
     }
 
@@ -161,16 +161,16 @@ where
     /// let chunks: Chunks<U10> = Chunks {
     ///     set_chunks: GenericArray::default(),
     ///     chunks: HashMap::new(),
-    ///     size_x: 0.1f32,
-    ///     size_y: 0.1f32,
-    ///     size_z: 0.1f32,
-    ///     chunk_starts: Vector3::new(0f32, 0f32, 0f32),
+    ///     size_x: 0.1f64,
+    ///     size_y: 0.1f64,
+    ///     size_z: 0.1f64,
+    ///     chunk_starts: Vector3::new(0f64, 0f64, 0f64),
     /// };
-    /// assert_eq!(0, chunks.key_for_coordinates(&Vector3::new(0f32, 0f32, 0f32)));
-    /// assert_eq!(111, chunks.key_for_coordinates(&Vector3::new(0.1f32, 0.11f32, 0.13f32)));
-    /// assert_eq!(998, chunks.key_for_coordinates(&Vector3::new(0.9f32, 0.98f32, 0.82f32)));
+    /// assert_eq!(0, chunks.key_for_coordinates(&Vector3::new(0f64, 0f64, 0f64)));
+    /// assert_eq!(111, chunks.key_for_coordinates(&Vector3::new(0.1f64, 0.11f64, 0.13f64)));
+    /// assert_eq!(998, chunks.key_for_coordinates(&Vector3::new(0.9f64, 0.98f64, 0.82f64)));
     /// ```
-    pub fn key_for_coordinates(&self, coords: &Vector3<f32>) -> u32 {
+    pub fn key_for_coordinates(&self, coords: &Vector3<f64>) -> u32 {
         let index = coords_to_chunk_index(coords, self);
         self.key_for_index(index.0, index.1, index.2)
     }
@@ -189,10 +189,10 @@ where
     /// let chunks: Chunks<U10> = Chunks {
     ///     set_chunks: GenericArray::default(),
     ///     chunks: HashMap::new(),
-    ///     size_x: 0.1f32,
-    ///     size_y: 0.1f32,
-    ///     size_z: 0.1f32,
-    ///     chunk_starts: Vector3::new(0f32, 0f32, 0f32),
+    ///     size_x: 0.1f64,
+    ///     size_y: 0.1f64,
+    ///     size_z: 0.1f64,
+    ///     chunk_starts: Vector3::new(0f64, 0f64, 0f64),
     /// };
     /// assert_eq!(0, chunks.key_for_index(0, 0, 0));
     /// assert_eq!(111, chunks.key_for_index(1, 1, 1));
@@ -217,10 +217,10 @@ where
     /// let mut chunks: Chunks<U10> = Chunks {
     ///     set_chunks: GenericArray::default(),
     ///     chunks: HashMap::new(),
-    ///     size_x: 0.1f32,
-    ///     size_y: 0.1f32,
-    ///     size_z: 0.1f32,
-    ///     chunk_starts: Vector3::new(0f32, 0f32, 0f32),
+    ///     size_x: 0.1f64,
+    ///     size_y: 0.1f64,
+    ///     size_z: 0.1f64,
+    ///     chunk_starts: Vector3::new(0f64, 0f64, 0f64),
     /// };
     ///
     /// chunks.add_surface_at(0, 0, 0, 1, None);
@@ -277,10 +277,10 @@ where
     /// let mut chunks: Chunks<U10> = Chunks {
     ///     set_chunks: GenericArray::default(),
     ///     chunks: HashMap::new(),
-    ///     size_x: 0.1f32,
-    ///     size_y: 0.1f32,
-    ///     size_z: 0.1f32,
-    ///     chunk_starts: Vector3::new(0f32, 0f32, 0f32),
+    ///     size_x: 0.1f64,
+    ///     size_y: 0.1f64,
+    ///     size_z: 0.1f64,
+    ///     chunk_starts: Vector3::new(0f64, 0f64, 0f64),
     /// };
     ///
     /// chunks.add_receiver_at(0, 0, 0, 1, None);
@@ -342,10 +342,10 @@ where
     /// let mut chunks: Chunks<U10> = Chunks {
     ///     set_chunks: GenericArray::default(),
     ///     chunks: HashMap::new(),
-    ///     size_x: 0.1f32,
-    ///     size_y: 0.1f32,
-    ///     size_z: 0.1f32,
-    ///     chunk_starts: Vector3::new(0f32, 0f32, 0f32),
+    ///     size_x: 0.1f64,
+    ///     size_y: 0.1f64,
+    ///     size_z: 0.1f64,
+    ///     chunk_starts: Vector3::new(0f64, 0f64, 0f64),
     /// };
     ///
     /// chunks.add_receiver_at(0, 0, 0, 1, None);
@@ -430,10 +430,10 @@ impl Scene {
 /// Calculate the chunk size from the given maximum bounds and
 /// desired number of chunks.
 fn calculate_chunk_size(
-    min_coords: &Vector3<f32>,
-    max_coords: &Vector3<f32>,
+    min_coords: &Vector3<f64>,
+    max_coords: &Vector3<f64>,
     number: u16,
-) -> (f32, f32, f32) {
+) -> (f64, f64, f64) {
     (
         single_chunk_size(min_coords.x, max_coords.x, number),
         single_chunk_size(min_coords.y, max_coords.y, number),
@@ -443,10 +443,10 @@ fn calculate_chunk_size(
 
 /// Calculate the chunk size between the given min/max coordinate. If it is 0,
 /// use 0.1 instead to avoid zero-width chunks. This shouldn't be able to happen.
-fn single_chunk_size(min: f32, max: f32, number: u16) -> f32 {
-    let result = (max - min) / f32::from(number);
-    if result <= 0f32 {
-        return 0.1f32;
+fn single_chunk_size(min: f64, max: f64, number: u16) -> f64 {
+    let result = (max - min) / f64::from(number);
+    if result <= 0f64 {
+        return 0.1f64;
     }
     result
 }
@@ -610,7 +610,7 @@ fn add_surface_keyframe_pair_to_chunks<const N: usize, C>(
 fn add_sphere_keyframe_pair_to_chunks<C>(
     mut first: CoordinateKeyframe,
     second: &CoordinateKeyframe,
-    radius: f32,
+    radius: f64,
     chunks: &mut Chunks<C>,
     index: usize,
 ) where
@@ -660,7 +660,7 @@ fn add_sphere_keyframe_pair_to_chunks<C>(
 /// Add the object described by the given index to all chunks touched by the
 /// box formed by the given coordinate slice's maximum bounds.
 fn add_coordinate_slice_to_chunks<C>(
-    coordinates: &[Vector3<f32>],
+    coordinates: &[Vector3<f64>],
     index: usize,
     chunks: &mut Chunks<C>,
     time: Option<(u32, Option<u32>)>,
@@ -684,8 +684,8 @@ fn add_coordinate_slice_to_chunks<C>(
 /// Add the object described by the given index to all chunks touched by the
 /// box formed by the given coordinate slice's maximum bounds.
 fn add_sphere_to_chunks<C>(
-    coordinates: &Vector3<f32>,
-    radius: f32,
+    coordinates: &Vector3<f64>,
+    radius: f64,
     index: usize,
     chunks: &mut Chunks<C>,
     time: Option<(u32, Option<u32>)>,
@@ -709,8 +709,8 @@ fn add_sphere_to_chunks<C>(
 /// Calculate the box formed around the given sphere
 /// bounds, represented as its boundaries' chunk indices.
 fn sphere_chunk_bounds<C>(
-    coordinates: &Vector3<f32>,
-    radius: f32,
+    coordinates: &Vector3<f64>,
+    radius: f64,
     chunks: &Chunks<C>,
 ) -> ((u32, u32, u32), (u32, u32, u32))
 where
@@ -731,7 +731,7 @@ where
 /// Calculate the box formed by the given coordinates' maximum
 /// bounds, represented as its boundaries' chunk indices.
 fn chunk_bounds<C>(
-    coordinates: &[Vector3<f32>],
+    coordinates: &[Vector3<f64>],
     chunks: &Chunks<C>,
 ) -> ((u32, u32, u32), (u32, u32, u32))
 where
@@ -747,7 +747,7 @@ where
 }
 
 /// Convert the given coordinates into their related chunk indices.
-fn coords_to_chunk_index<C>(coords: &Vector3<f32>, chunks: &Chunks<C>) -> (u32, u32, u32)
+fn coords_to_chunk_index<C>(coords: &Vector3<f64>, chunks: &Chunks<C>) -> (u32, u32, u32)
 where
     C: Unsigned + Mul<C>,
     <C as Mul>::Output: Mul<C>,
@@ -779,10 +779,10 @@ mod tests {
         Chunks {
             set_chunks: GenericArray::default(),
             chunks: HashMap::new(),
-            size_x: 0.2f32,
-            size_y: 0.2f32,
-            size_z: 0.2f32,
-            chunk_starts: Vector3::new(-1f32, -1f32, -1f32),
+            size_x: 0.2f64,
+            size_y: 0.2f64,
+            size_z: 0.2f64,
+            chunk_starts: Vector3::new(-1f64, -1f64, -1f64),
         }
     }
 
@@ -802,10 +802,10 @@ mod tests {
     #[test]
     fn calculate_chunk_size_empty() {
         assert_eq!(
-            (0.1f32, 0.1f32, 0.1f32),
+            (0.1f64, 0.1f64, 0.1f64),
             calculate_chunk_size(
-                &Vector3::new(0f32, 0f32, 0f32),
-                &Vector3::new(0f32, 0f32, 0f32),
+                &Vector3::new(0f64, 0f64, 0f64),
+                &Vector3::new(0f64, 0f64, 0f64),
                 10,
             )
         );
@@ -814,10 +814,10 @@ mod tests {
     #[test]
     fn calculate_chunk_size_normal_scene() {
         assert_eq!(
-            (2f32, 2f32, 4f32),
+            (2f64, 2f64, 4f64),
             calculate_chunk_size(
-                &Vector3::new(-20f32, 10f32, 10f32),
-                &Vector3::new(0f32, 30f32, 50f32),
+                &Vector3::new(-20f64, 10f64, 10f64),
+                &Vector3::new(0f64, 30f64, 50f64),
                 10,
             )
         );
@@ -825,17 +825,17 @@ mod tests {
 
     #[test]
     fn single_chunk_size_empty() {
-        assert_eq!(0.1f32, single_chunk_size(0f32, 0f32, u16::MAX));
+        assert_eq!(0.1f64, single_chunk_size(0f64, 0f64, u16::MAX));
     }
 
     #[test]
     fn single_chunk_size_normal() {
-        assert_eq!(2.5f32, single_chunk_size(0f32, 50f32, 20));
+        assert_eq!(2.5f64, single_chunk_size(0f64, 50f64, 20));
     }
 
     #[test]
     fn single_chunk_size_giant() {
-        assert_eq!(20f32, single_chunk_size(-100_000f32, 100_000f32, 10000));
+        assert_eq!(20f64, single_chunk_size(-100_000f64, 100_000f64, 10000));
     }
 
     // TODO
@@ -849,7 +849,7 @@ mod tests {
         let chunks = empty_chunks();
         assert_eq!(
             ((0, 0, 0), (9, 9, 9)),
-            sphere_chunk_bounds(&Vector3::new(0f32, 0f32, 0f32), 0.9f32, &chunks)
+            sphere_chunk_bounds(&Vector3::new(0f64, 0f64, 0f64), 0.9f64, &chunks)
         );
     }
 
@@ -858,7 +858,7 @@ mod tests {
         let chunks = empty_chunks();
         assert_eq!(
             ((3, 2, 3), (4, 4, 4)),
-            sphere_chunk_bounds(&Vector3::new(-0.2f32, -0.3f32, -0.2f32), 0.15f32, &chunks)
+            sphere_chunk_bounds(&Vector3::new(-0.2f64, -0.3f64, -0.2f64), 0.15f64, &chunks)
         );
     }
 
@@ -869,8 +869,8 @@ mod tests {
             ((0, 0, 0), (9, 9, 9)),
             chunk_bounds(
                 &[
-                    Vector3::new(-1f32, -1f32, -1f32),
-                    Vector3::new(0.9f32, 0.99f32, 0.999f32)
+                    Vector3::new(-1f64, -1f64, -1f64),
+                    Vector3::new(0.9f64, 0.99f64, 0.999f64)
                 ],
                 &chunks
             )
@@ -881,11 +881,11 @@ mod tests {
     fn chunk_bounds_partial() {
         let chunks = empty_chunks();
         assert_eq!(
-            ((6, 5, 6), (9, 6, 6)),
+            ((6, 5, 5), (9, 5, 6)),
             chunk_bounds(
                 &[
-                    Vector3::new(0.3f32, 0.2f32, 0.3f32),
-                    Vector3::new(0.9f32, 0.1f32, 0.2f32)
+                    Vector3::new(0.3f64, 0.2f64, 0.3f64),
+                    Vector3::new(0.9f64, 0.1f64, 0.2f64)
                 ],
                 &chunks
             )
@@ -897,7 +897,7 @@ mod tests {
         let chunks = empty_chunks();
         assert_eq!(
             (0, 0, 0),
-            coords_to_chunk_index(&Vector3::new(-1f32, -1f32, -1f32), &chunks)
+            coords_to_chunk_index(&Vector3::new(-1f64, -1f64, -1f64), &chunks)
         )
     }
 
@@ -906,7 +906,7 @@ mod tests {
         let chunks = empty_chunks();
         assert_eq!(
             (5, 5, 5),
-            coords_to_chunk_index(&Vector3::new(0f32, 0f32, 0f32), &chunks)
+            coords_to_chunk_index(&Vector3::new(0f64, 0f64, 0f64), &chunks)
         )
     }
 
@@ -914,8 +914,8 @@ mod tests {
     fn random_coords_to_chunk_index() {
         let chunks = empty_chunks();
         assert_eq!(
-            (3, 7, 5),
-            coords_to_chunk_index(&Vector3::new(-0.3f32, 0.4f32, 0.1f32), &chunks)
+            (3, 6, 5),
+            coords_to_chunk_index(&Vector3::new(-0.3f64, 0.4f64, 0.1f64), &chunks)
         )
     }
 
@@ -925,7 +925,7 @@ mod tests {
         assert_eq!(
             (9, 9, 9),
             coords_to_chunk_index(
-                &Vector3::new(0.9999f32, 0.9999999f32, 0.9999999f32),
+                &Vector3::new(0.9999f64, 0.9999999f64, 0.9999999f64),
                 &chunks
             )
         )

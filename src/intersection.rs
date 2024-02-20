@@ -19,7 +19,7 @@ pub fn intersect_ray_and_surface(
     surface: &Surface<3>,
     time_entry: u32,
     time_exit: u32,
-) -> Option<(u32, Vector3<f32>)> {
+) -> Option<(u32, Vector3<f64>)> {
     match surface {
         Surface::Interpolated(coords, _time, _material) => {
             intersection_check_surface_coordinates(ray, coords, time_entry, time_exit)
@@ -63,11 +63,11 @@ fn intersection_check_surface_keyframes(
     keyframe_second: &SurfaceKeyframe<3>,
     time_entry: u32,
     time_exit: u32,
-) -> Option<(u32, Vector3<f32>)> {
+) -> Option<(u32, Vector3<f64>)> {
     let (d3, d2, d1, d0) = surface_polynomial_parameters(ray, keyframe_first, keyframe_second);
 
     let intersections = maths::solve_cubic_equation(d3, d2, d1, d0);
-    let mut intersection: Option<(u32, Vector3<f32>)> = None;
+    let mut intersection: Option<(u32, Vector3<f64>)> = None;
     for intersection_time in intersections {
         if (intersection_time.floor() as u32) < time_entry
             || intersection_time.ceil() as u32 > time_exit
@@ -102,13 +102,13 @@ fn surface_polynomial_parameters(
     ray: &Ray,
     keyframe_first: &SurfaceKeyframe<3>,
     keyframe_second: &SurfaceKeyframe<3>,
-) -> (f32, f32, f32, f32) {
+) -> (f64, f64, f64, f64) {
     let (g2, g1, g0) = surface_cross_product_parameters(keyframe_first, keyframe_second);
-    let ray_time = ray.time as f32; // t_0
+    let ray_time = ray.time as f64; // t_0
     let velocity = ray.velocity * ray.direction.into_inner();
-    let delta_time = (keyframe_second.time - keyframe_first.time) as f32;
+    let delta_time = (keyframe_second.time - keyframe_first.time) as f64;
     let delta_point_1 = keyframe_second.coords[0] - keyframe_first.coords[0];
-    let second_div_delta_time = keyframe_second.time as f32 / delta_time;
+    let second_div_delta_time = keyframe_second.time as f64 / delta_time;
     let g2_dot_diff_point_1 = g2.dot(&delta_point_1);
     let g1_dot_diff_point_1 = g1.dot(&delta_point_1);
     let g0_dot_diff_point_1 = g0.dot(&delta_point_1);
@@ -158,9 +158,9 @@ fn surface_polynomial_parameters(
 fn surface_cross_product_parameters(
     keyframe_first: &SurfaceKeyframe<3>,
     keyframe_second: &SurfaceKeyframe<3>,
-) -> (Vector3<f32>, Vector3<f32>, Vector3<f32>) {
-    let second_time = keyframe_second.time as f32;
-    let delta_time = (keyframe_second.time - keyframe_first.time) as f32;
+) -> (Vector3<f64>, Vector3<f64>, Vector3<f64>) {
+    let second_time = keyframe_second.time as f64;
+    let delta_time = (keyframe_second.time - keyframe_first.time) as f64;
     let two_three = surface_sub_cross_product_parameters(
         &keyframe_first.coords[1],
         &keyframe_second.coords[1],
@@ -195,13 +195,13 @@ fn surface_cross_product_parameters(
 /// calculate the sub cross product parameters (called f_{n, a, b} in the thesis).
 #[allow(clippy::similar_names)]
 fn surface_sub_cross_product_parameters(
-    coords_a_first: &Vector3<f32>,
-    coords_a_second: &Vector3<f32>,
-    coords_b_first: &Vector3<f32>,
-    coords_b_second: &Vector3<f32>,
-    delta_time: f32,
-    second_time: f32,
-) -> (Vector3<f32>, Vector3<f32>, Vector3<f32>) {
+    coords_a_first: &Vector3<f64>,
+    coords_a_second: &Vector3<f64>,
+    coords_b_first: &Vector3<f64>,
+    coords_b_second: &Vector3<f64>,
+    delta_time: f64,
+    second_time: f64,
+) -> (Vector3<f64>, Vector3<f64>, Vector3<f64>) {
     let a1b1 = coords_a_first.cross(coords_b_first);
     let a1b2 = coords_a_first.cross(coords_b_second);
     let a2b1 = coords_a_second.cross(coords_b_first);
@@ -209,10 +209,10 @@ fn surface_sub_cross_product_parameters(
 
     (
         a2b2 - a1b2 - a2b1 + a1b1, //f_{2, a, b}
-        -delta_time * (-2f32 * a2b2 + a1b2 + a2b1)
-            - 2f32 * second_time * (a2b2 - a1b2 - a2b1 + a1b1), // f_{1, a, b}
+        -delta_time * (-2f64 * a2b2 + a1b2 + a2b1)
+            - 2f64 * second_time * (a2b2 - a1b2 - a2b1 + a1b1), // f_{1, a, b}
         delta_time.powi(2) * a2b2
-            + second_time * delta_time * (-2f32 * a2b2 + a1b2 + a2b1)
+            + second_time * delta_time * (-2f64 * a2b2 + a1b2 + a2b1)
             + second_time.powi(2) * (a2b2 - a1b2 - a2b1 + a1b1), // f_{0, a, b}
     )
 }
@@ -224,18 +224,18 @@ fn surface_sub_cross_product_parameters(
 /// inside the triangle itself using barycentric coordinates.
 fn intersection_check_surface_coordinates(
     ray: &Ray,
-    coords: &[Vector3<f32>; 3],
+    coords: &[Vector3<f64>; 3],
     time_entry: u32,
     time_exit: u32,
-) -> Option<(u32, Vector3<f32>)> {
+) -> Option<(u32, Vector3<f64>)> {
     let normal = (coords[1] - coords[0]).cross(&(coords[2] - coords[0]));
     let direction_dot_normal = ray.direction.into_inner().dot(&normal);
-    if direction_dot_normal == 0f32 {
+    if direction_dot_normal == 0f64 {
         return None;
     }
     let intersection_time = -(ray.origin - coords[0]).dot(&normal)
         / (ray.velocity * direction_dot_normal)
-        + ray.time as f32;
+        + ray.time as f64;
     if (intersection_time.trunc() as u32) < time_entry
         || intersection_time.ceil() as u32 > time_exit
     {
@@ -262,7 +262,7 @@ pub fn intersect_ray_and_receiver(
     receiver: &Receiver,
     time_entry: u32,
     time_exit: u32,
-) -> Option<(u32, Vector3<f32>)> {
+) -> Option<(u32, Vector3<f64>)> {
     match receiver {
         Receiver::Interpolated(coords, radius, _time) => {
             intersection_check_receiver_coordinates(ray, coords, *radius, time_entry, time_exit)
@@ -306,13 +306,13 @@ fn intersection_check_receiver_keyframes(
     ray: &Ray,
     keyframe_first: &CoordinateKeyframe,
     keyframe_second: &CoordinateKeyframe,
-    radius: f32,
+    radius: f64,
     time_entry: u32,
     time_exit: u32,
-) -> Option<(u32, Vector3<f32>)> {
+) -> Option<(u32, Vector3<f64>)> {
     let (d2, d1, d0) = receiver_polynomial_parameters(ray, keyframe_first, keyframe_second, radius);
     let intersections = maths::solve_quadratic_equation(d2, d1, d0);
-    let mut intersection: Option<f32> = None;
+    let mut intersection: Option<f64> = None;
     for intersection_time in intersections {
         if (intersection_time.floor() as u32) < time_entry
             || intersection_time.ceil() as u32 > time_exit
@@ -338,69 +338,31 @@ fn receiver_polynomial_parameters(
     ray: &Ray,
     keyframe_first: &CoordinateKeyframe,
     keyframe_second: &CoordinateKeyframe,
-    radius: f32,
-) -> (f32, f32, f32) {
-    let ray_time = ray.time as f32;
+    radius: f64,
+) -> (f64, f64, f64) {
+    let ray_time = ray.time as f64;
     let velocity = ray.velocity * ray.direction.into_inner();
-    let delta_time = (keyframe_second.time - keyframe_first.time) as f32;
-    let second_time = keyframe_second.time as f32;
+    let delta_time = (keyframe_second.time - keyframe_first.time) as f64;
+    let second_time = keyframe_second.time as f64;
     let delta_center = keyframe_second.coords - keyframe_first.coords;
-    let ray_origin_to_center_second = ray.origin - keyframe_second.coords;
-    let origin_minus_center_minus_t0_v = ray_origin_to_center_second - ray_time * velocity;
+    let p_minus_ck2 = ray.origin - keyframe_second.coords;
+    let p_minus_ck2_minus_t0_v = p_minus_ck2 - ray_time * velocity;
     /*
     Unoptimized (readable) version:
-    (
-        velocity.norm_squared() * delta_time.powi(2) + delta_center.norm_squared()
-            - 2f32 * delta_time * velocity.dot(&delta_center), // d_2
-        2f32 * (delta_time.powi(2) * ray_origin_to_center_second.dot(&velocity)
-            - ray_time * velocity.norm_squared()
-            - delta_time * origin_minus_center_minus_t0_v.dot(&delta_center)
-            + second_time * delta_time * velocity.dot(&delta_center)
-            - second_time * delta_center.norm_squared()), // d_1
-        (ray_origin_to_center_second.norm_squared()
-            + 2f32 * ray_time * -1f32 * ray_origin_to_center_second.dot(&velocity)
-            + ray_time.powi(2) * velocity.norm_squared())
-            * delta_time.powi(2)
-            + 2f32 * second_time * delta_time * origin_minus_center_minus_t0_v.dot(&delta_center)
-            + second_time.powi(2) * delta_center.norm_squared()
-            - radius.powi(2) * delta_time.powi(2), // d_0
-    )
      */
     (
-        (2f32 * delta_time).mul_add(
-            -velocity.dot(&delta_center),
-            velocity
-                .norm_squared()
-                .mul_add(delta_time.powi(2), delta_center.norm_squared()),
-        ), // d_2
-        2f32 * (delta_time.powi(2).mul_add(
-            ray_origin_to_center_second.dot(&velocity),
-            ray_time.mul_add(
-                -velocity.norm_squared(),
-                delta_time.mul_add(
-                    -origin_minus_center_minus_t0_v.dot(&delta_center),
-                    second_time
-                        * delta_time
-                            .mul_add(velocity.dot(&delta_center), -delta_center.norm_squared()),
-                ),
-            ),
-        )), // d_1
-        delta_time.powi(2).mul_add(
-            (-2f32 * ray_time).mul_add(
-                ray_origin_to_center_second.dot(&velocity),
-                ray_time.powi(2).mul_add(
-                    velocity.norm_squared(),
-                    ray_origin_to_center_second.norm_squared(),
-                ),
-            ),
-            (2f32 * second_time * delta_time).mul_add(
-                origin_minus_center_minus_t0_v.dot(&delta_center),
-                second_time.powi(2).mul_add(
-                    delta_center.norm_squared(),
-                    -radius.powi(2) * delta_time.powi(2),
-                ),
-            ),
-        ), // d_0
+        delta_time.powi(2) * velocity.norm_squared() + delta_center.norm_squared()
+            - 2f64 * delta_time * velocity.dot(&delta_center), // d_2
+        2f64 * (delta_time.powi(2) * p_minus_ck2_minus_t0_v.dot(&velocity)
+            - delta_time * p_minus_ck2_minus_t0_v.dot(&delta_center)
+            + second_time * delta_time * velocity.dot(&delta_center)
+            - second_time * delta_center.norm_squared()), // d_1
+        delta_time.powi(2) * (p_minus_ck2.norm_squared()
+            + 2f64 * ray_time * (-1f64 * p_minus_ck2).dot(&velocity)
+            + ray_time.powi(2) * velocity.norm_squared()
+            - radius.powi(2))
+            + 2f64 * second_time * delta_time * p_minus_ck2_minus_t0_v.dot(&delta_center)
+            + second_time.powi(2) * delta_center.norm_squared(), // d_0
     )
 }
 
@@ -408,14 +370,14 @@ fn receiver_polynomial_parameters(
 /// the ray.
 fn intersection_check_receiver_coordinates(
     ray: &Ray,
-    coords: &Vector3<f32>,
-    radius: f32,
+    coords: &Vector3<f64>,
+    radius: f64,
     time_entry: u32,
     time_exit: u32,
-) -> Option<(u32, Vector3<f32>)> {
+) -> Option<(u32, Vector3<f64>)> {
     let origin_to_coords = coords - ray.origin;
     let time_origin_to_angle = origin_to_coords.dot(&(ray.direction.into_inner()));
-    if time_origin_to_angle < 0f32 {
+    if time_origin_to_angle < 0f64 {
         return None;
     }
     // non-optimised/readable version
@@ -432,7 +394,7 @@ fn intersection_check_receiver_coordinates(
     // let time_angle_to_result = (radius.powi(2) - time_coords_to_angle.powi(2)).abs().sqrt();
     let time_angle_to_result = radius.mul_add(radius, - time_coords_to_angle.powi(2)).abs().sqrt();
     let intersection_time =
-        (time_origin_to_angle - time_angle_to_result) / ray.velocity + ray.time as f32;
+        (time_origin_to_angle - time_angle_to_result) / ray.velocity + ray.time as f64;
 
     if (intersection_time.trunc() as u32) < time_entry
         || intersection_time.ceil() as u32 > time_exit

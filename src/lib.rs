@@ -2,7 +2,7 @@
 // remove this once integrating - this is to avoid exessive and useless warnings for the time being
 
 /// The default sample rate of 44.1 `KHz`.
-pub const DEFAULT_SAMPLE_RATE: f32 = 44100f32;
+pub const DEFAULT_SAMPLE_RATE: f64 = 44100f64;
 
 pub mod chunk;
 pub mod interpolation;

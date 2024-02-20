@@ -12,14 +12,6 @@ fn main() {
         "Please provide at least a scene index and an input file!"
     );
 
-    let scene_index = args[1]
-        .parse::<u32>()
-        .unwrap_or_else(|_| panic!("Scene index must be a number!"));
-    let scene = match scene_index {
-        0 => scene_builder::static_cube_scene(),
-        _ => panic!("Invalid scene index! Only scene index 0 is supported at this time."),
-    };
-
     let input_fname = &args[2];
     let mut input_file = std::fs::File::open(std::path::Path::new(input_fname))
         .unwrap_or_else(|_| panic!("Input file couldn't be opened!"));
@@ -32,6 +24,29 @@ fn main() {
         wav::BitDepth::ThirtyTwoFloat(data) => data.len(),
         wav::BitDepth::Empty => panic!("Input file did not contain any data!"),
     };
+
+    let scene_index = args[1]
+        .parse::<u32>()
+        .unwrap_or_else(|_| panic!("Scene index must be a number!"));
+    let scene = match scene_index {
+        0 => scene_builder::static_cube_scene(),
+        1 => scene_builder::static_receiver_scene(),
+        2 => scene_builder::approaching_receiver_scene(header.sampling_rate),
+        _ => {
+            println!("Invalid scene index! The following scene indices are supported");
+            println!("\t0 - Static Cube");
+            println!("\t1 - Static Receiver");
+            println!("\t2 - Approaching Receiver");
+            panic!();
+        },
+    };
+    let scene_name = match scene_index {
+        0 => "static cube",
+        1 => "static receiver",
+        2 => "approaching receiver",
+        _ => "error"
+    };
+    println!("Selected scene #{scene_index}: \"{scene_name}\".");
 
     let mut number_of_rays = DEFAULT_NUMBER_OF_RAYS;
     if args.len() >= 4 {
@@ -47,8 +62,8 @@ fn main() {
         &input_data,
         number_of_rays,
         DEFAULT_PROPAGATION_SPEED,
-        header.sampling_rate as f32,
-        number_of_rays as f32,
+        header.sampling_rate as f64,
+        number_of_rays as f64 / 10f64,
     );
     let elapsed = time_start.elapsed().as_secs();
     println!("Finished calculation in {}:{}:{}", elapsed / 3600, (elapsed % 3600) / 60, elapsed % 60);

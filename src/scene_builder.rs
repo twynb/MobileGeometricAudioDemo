@@ -1,15 +1,17 @@
 use nalgebra::Vector3;
 
 use crate::{
-    bounce::EmissionType, materials::{Material, MATERIAL_CONCRETE_WALL}, scene::{CoordinateKeyframe, Emitter, Receiver, Scene, Surface}
+    bounce::EmissionType,
+    materials::{Material, MATERIAL_CONCRETE_WALL},
+    scene::{CoordinateKeyframe, Emitter, Receiver, Scene, Surface},
 };
 
 /// Create a static cube primitive described by the given coordinates and material.
 #[must_use]
 #[allow(clippy::too_many_lines)]
 pub fn static_cube(
-    bottom_left: Vector3<f32>,
-    top_right: Vector3<f32>,
+    bottom_left: Vector3<f64>,
+    top_right: Vector3<f64>,
     material: Material,
 ) -> Vec<Surface<3>> {
     vec![
@@ -132,17 +134,18 @@ pub fn static_cube(
 
 /// Representations of object primitives `SceneBuilder` can create.
 enum Object {
-    StaticCube(Vector3<f32>, Vector3<f32>, Material),
+    StaticCube(Vector3<f64>, Vector3<f64>, Material),
 }
 
 /// A builder to easily create scenes with.
 pub struct SceneBuilder {
     objects: Vec<Object>,
-    receiver_coords: Option<Vector3<f32>>,
+    receiver_coords: Option<Vector3<f64>>,
     receiver_keyframes: Option<Vec<CoordinateKeyframe>>,
-    receiver_radius: f32,
-    emitter_coords: Option<Vector3<f32>>,
+    receiver_radius: f64,
+    emitter_coords: Option<Vector3<f64>>,
     emitter_keyframes: Option<Vec<CoordinateKeyframe>>,
+    emission_type: EmissionType,
 }
 
 impl SceneBuilder {
@@ -158,12 +161,12 @@ impl SceneBuilder {
     #[allow(clippy::too_many_arguments)]
     pub fn with_static_cube(
         mut self,
-        bottom_left_x: f32,
-        bottom_left_y: f32,
-        bottom_left_z: f32,
-        top_right_x: f32,
-        top_right_y: f32,
-        top_right_z: f32,
+        bottom_left_x: f64,
+        bottom_left_y: f64,
+        bottom_left_z: f64,
+        top_right_x: f64,
+        top_right_y: f64,
+        top_right_z: f64,
         material: Material,
     ) -> Self {
         self.objects.push(Object::StaticCube(
@@ -177,7 +180,7 @@ impl SceneBuilder {
     /// Set the coordinates for the receiver.
     /// If coordinates or coordinate keyframes have previously been set,
     /// they are discarded in favour of the new coordinates.
-    pub fn with_receiver_at(mut self, x: f32, y: f32, z: f32) -> Self {
+    pub fn with_receiver_at(mut self, x: f64, y: f64, z: f64) -> Self {
         self.receiver_coords = Some(Vector3::new(x, y, z));
         self.receiver_keyframes = None;
         self
@@ -193,7 +196,7 @@ impl SceneBuilder {
     }
 
     /// Set the radius for the receiver.
-    pub const fn with_receiver_radius(mut self, radius: f32) -> Self {
+    pub const fn with_receiver_radius(mut self, radius: f64) -> Self {
         self.receiver_radius = radius;
         self
     }
@@ -201,7 +204,7 @@ impl SceneBuilder {
     /// Set the coordinates for the emitter.
     /// If coordinates or coordinate keyframes have previously been set,
     /// they are discarded in favour of the new coordinates.
-    pub fn with_emitter_at(mut self, x: f32, y: f32, z: f32) -> Self {
+    pub fn with_emitter_at(mut self, x: f64, y: f64, z: f64) -> Self {
         self.emitter_coords = Some(Vector3::new(x, y, z));
         self.emitter_keyframes = None;
         self
@@ -213,6 +216,18 @@ impl SceneBuilder {
     pub fn with_emitter_keyframes(mut self, coords: Vec<CoordinateKeyframe>) -> Self {
         self.emitter_keyframes = Some(coords);
         self.emitter_coords = None;
+        self
+    }
+
+    /// Set the emission type to be randomised, i.e. rays are initially launched in all directions.
+    pub const fn with_random_emission(mut self) -> Self {
+        self.emission_type = EmissionType::Random;
+        self
+    }
+
+    /// Set the emission type to have a specific direction, i.e. all rays are initially launched in this direction.
+    pub fn with_directed_emission(mut self, x: f64, y: f64, z: f64) -> Self {
+        self.emission_type = EmissionType::Directed(Vector3::new(x, y, z).normalize());
         self
     }
 
@@ -245,9 +260,9 @@ impl SceneBuilder {
         };
 
         let emitter = if let Some(coords) = self.emitter_coords {
-            Emitter::Interpolated(coords, 0, EmissionType::Random)
+            Emitter::Interpolated(coords, 0, self.emission_type)
         } else if let Some(keyframes) = &self.emitter_keyframes {
-            Emitter::Keyframes(keyframes.clone(), EmissionType::Random)
+            Emitter::Keyframes(keyframes.clone(), self.emission_type)
         } else {
             panic!("Somehow, neither emitter_keyframes nor emitter_coords was set. This shouldn't happen.")
         };
@@ -264,11 +279,12 @@ impl Default for SceneBuilder {
     fn default() -> Self {
         Self {
             objects: vec![],
-            receiver_coords: Some(Vector3::new(0f32, 0f32, 0f32)),
+            receiver_coords: Some(Vector3::new(0f64, 0f64, 0f64)),
             receiver_keyframes: None,
-            receiver_radius: 0.1f32,
-            emitter_coords: Some(Vector3::new(0f32, 0f32, 0f32)),
+            receiver_radius: 0.1f64,
+            emitter_coords: Some(Vector3::new(0f64, 0f64, 0f64)),
             emitter_keyframes: None,
+            emission_type: EmissionType::Random,
         }
     }
 }
@@ -276,14 +292,37 @@ impl Default for SceneBuilder {
 pub fn static_cube_scene() -> Scene {
     SceneBuilder::new()
         .with_static_cube(
-            -10f32,
-            -10f32,
-            -10f32,
-            10f32,
-            10f32,
-            10f32,
+            -10f64,
+            -10f64,
+            -10f64,
+            10f64,
+            10f64,
+            10f64,
             MATERIAL_CONCRETE_WALL,
         )
-        .with_emitter_at(0f32, 0f32, 1.2f32)
+        .with_emitter_at(0f64, 0f64, 1.2f64)
+        .build()
+}
+
+pub fn static_receiver_scene() -> Scene {
+    SceneBuilder::new()
+        .with_directed_emission(1f64, 0f64, 0f64)
+        .with_receiver_at(343.3f64, 0f64, 0f64)
+        .build()
+}
+
+pub fn approaching_receiver_scene(sample_rate: u32) -> Scene {
+    SceneBuilder::new()
+        .with_directed_emission(1f64, 0f64, 0f64)
+        .with_receiver_keyframes(vec![
+            CoordinateKeyframe {
+                coords: Vector3::new(343.3f64, 0f64, 0f64),
+                time: 0,
+            },
+            CoordinateKeyframe {
+                coords: Vector3::new(0f64, 0f64, 0f64),
+                time: sample_rate * 9,
+            },
+        ])
         .build()
 }

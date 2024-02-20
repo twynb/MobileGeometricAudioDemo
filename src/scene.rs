@@ -2,6 +2,7 @@ use std::ops::Mul;
 
 use generic_array::ArrayLength;
 use nalgebra::Vector3;
+use num::{Bounded, Num, NumCast};
 use rayon::prelude::*;
 use typenum::Unsigned;
 use wav::BitDepth;
@@ -20,7 +21,7 @@ use crate::{
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct CoordinateKeyframe {
     pub time: u32,
-    pub coords: Vector3<f32>,
+    pub coords: Vector3<f64>,
 }
 
 /// Sound emitter.
@@ -28,7 +29,7 @@ pub struct CoordinateKeyframe {
 #[derive(Clone, PartialEq, Debug)]
 pub enum Emitter {
     Keyframes(Vec<CoordinateKeyframe>, EmissionType),
-    Interpolated(Vector3<f32>, u32, EmissionType),
+    Interpolated(Vector3<f64>, u32, EmissionType),
 }
 
 /// Sound receiver.
@@ -36,15 +37,15 @@ pub enum Emitter {
 /// Always also has a radius.
 #[derive(Clone, PartialEq, Debug)]
 pub enum Receiver {
-    Keyframes(Vec<CoordinateKeyframe>, f32),
-    Interpolated(Vector3<f32>, f32, u32),
+    Keyframes(Vec<CoordinateKeyframe>, f64),
+    Interpolated(Vector3<f64>, f64, u32),
 }
 
 /// Keyframe for a set of coordinates for a surface.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct SurfaceKeyframe<const N: usize> {
     pub time: u32,
-    pub coords: [Vector3<f32>; N],
+    pub coords: [Vector3<f64>; N],
 }
 
 /// Surface in the scene.
@@ -53,7 +54,7 @@ pub struct SurfaceKeyframe<const N: usize> {
 #[derive(Clone, PartialEq, Debug)]
 pub enum Surface<const N: usize> {
     Keyframes(Vec<SurfaceKeyframe<N>>, Material),
-    Interpolated([Vector3<f32>; N], u32, Material),
+    Interpolated([Vector3<f64>; N], u32, Material),
 }
 
 impl<const N: usize> Surface<N> {
@@ -62,7 +63,7 @@ impl<const N: usize> Surface<N> {
     /// # Panics
     ///
     /// * When attempting to calculate the normal on a non-interpolated surface.
-    pub fn normal(&self) -> Vector3<f32> {
+    pub fn normal(&self) -> Vector3<f64> {
         match self {
             Self::Interpolated(coords, _time, _material) => {
                 let cross = (coords[1] - coords[0]).cross(&(coords[2] - coords[0]));
@@ -96,7 +97,7 @@ where
 {
     pub scene: Scene,
     pub chunks: Chunks<C>,
-    pub maximum_bounds: (nalgebra::Vector3<f32>, nalgebra::Vector3<f32>),
+    pub maximum_bounds: (nalgebra::Vector3<f64>, nalgebra::Vector3<f64>),
 }
 
 impl<C> SceneData<C>
@@ -126,9 +127,9 @@ where
         &self,
         input_data: &BitDepth,
         number_of_rays: u32,
-        velocity: f32,
-        sample_rate: f32,
-        scaling_factor: f32,
+        velocity: f64,
+        sample_rate: f64,
+        scaling_factor: f64,
     ) -> BitDepth {
         match input_data {
             BitDepth::Eight(data) => BitDepth::Eight(self.simulate_for_time_span_internal(
@@ -167,22 +168,21 @@ where
         }
     }
 
-    fn simulate_for_time_span_internal<
-        T: num::Num + num::NumCast + Clone + Copy + Sync + Send + std::fmt::Debug,
-    >(
+    fn simulate_for_time_span_internal<T: Num + NumCast + Clone + Copy + Sync + Send + Bounded>(
         &self,
         data: &[T],
         number_of_rays: u32,
-        velocity: f32,
-        sample_rate: f32,
-        scaling_factor: f32,
+        velocity: f64,
+        sample_rate: f64,
+        scaling_factor: f64,
     ) -> Vec<T> {
-        let buffers: Vec<Vec<f32>> = data
+        let buffers: Vec<Vec<f64>> = data
             .iter()
             .enumerate()
             .map(|(idx, val)| (idx, *val))
             .collect::<Vec<(usize, T)>>()
             .par_chunks(1000)
+            // .chunks(1000)
             .map(|chunk| {
                 println!("{}", chunk[0].0);
                 self.simulate_for_chunk(
@@ -196,36 +196,51 @@ where
             })
             .collect();
         let max_len = buffers.iter().max_by_key(|vec| vec.len()).unwrap().len();
-        let mut buffer = vec![0f32; max_len];
+        let mut buffer = vec![0f64; max_len];
         for buffer_to_add in &buffers {
             buffer
                 .iter_mut()
                 .zip(buffer_to_add)
                 .for_each(|(val, to_add)| *val += *to_add);
         }
+        let mut had_to_clip = false;
         buffer
             .iter()
-            .map(|val| num::cast::<f32, T>(*val).unwrap())
+            .map(|val| {
+                // clipping in case we exceed T's range
+                // shouldn't be necessary if scaling_factor does its job
+                num::cast::<f64, T>(*val).unwrap_or_else(|| {
+                    if !had_to_clip {
+                        had_to_clip = true;
+                        println!("WARNING: Part of the resulting audio had to be clipped because it exceeded the file format's range. Please try a bigger scaling factor.")
+                    }
+                    if *val > 0f64 {
+                        T::max_value()
+                    } else {
+                        T::min_value()
+                    }
+                })
+            })
             .collect()
     }
 
-    fn simulate_for_chunk<T: num::Num + num::NumCast + Clone + Copy + Sync + Send>(
+    fn simulate_for_chunk<T: Num + NumCast + Clone + Copy + Sync + Send>(
         &self,
         data_len: usize,
         chunk: &[(usize, T)],
         number_of_rays: u32,
-        velocity: f32,
-        sample_rate: f32,
-        scaling_factor: f32,
-    ) -> Vec<f32> {
-        let mut buffer: Vec<f32> = vec![0f32; data_len];
+        velocity: f64,
+        sample_rate: f64,
+        scaling_factor: f64,
+    ) -> Vec<f64> {
+        let mut buffer: Vec<f64> = vec![0f64; data_len];
         for (idx, value) in chunk {
             let impulse_response =
                 self.simulate_at_time(*idx as u32, number_of_rays, velocity, sample_rate);
             let buffer_to_add =
                 impulse_response::apply_to_sample(&impulse_response, *value, *idx, scaling_factor);
             if buffer.len() < buffer_to_add.len() {
-                buffer.resize(buffer_to_add.len(), 0f32);
+                buffer.resize(buffer_to_add.len(), 0f64);
             }
             buffer
                 .iter_mut()
@@ -241,10 +256,10 @@ where
         &self,
         time: u32,
         number_of_rays: u32,
-        velocity: f32,
-        sample_rate: f32,
-    ) -> Vec<f32> {
-        let rt_results: Vec<(f32, u32)> = (0..number_of_rays)
+        velocity: f64,
+        sample_rate: f64,
+    ) -> Vec<f64> {
+        let rt_results: Vec<(f64, u32)> = (0..number_of_rays)
             .flat_map(|_| self.launch_ray(time, velocity, sample_rate))
             .collect();
         to_impulse_response(&rt_results, number_of_rays)
@@ -253,8 +268,10 @@ where
     /// Launch a single ray into this `Scene`, and return its result.
     /// The direction it is launched in is a random position in the unit cube,
     /// which gets normalised in the ray's launch function.
-    fn launch_ray(&self, time: u32, velocity: f32, sample_rate: f32) -> Vec<(f32, u32)> {
-        let Emitter::Interpolated(emitter_coords, _, emission_type) = self.scene.emitter.at_time(time) else {
+    fn launch_ray(&self, time: u32, velocity: f64, sample_rate: f64) -> Vec<(f64, u32)> {
+        let Emitter::Interpolated(emitter_coords, _, emission_type) =
+            self.scene.emitter.at_time(time)
+        else {
             // this should not be able to happen
             return vec![];
         };

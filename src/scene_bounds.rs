@@ -4,7 +4,7 @@ use crate::scene::{Emitter, Receiver, Scene, Surface, SurfaceKeyframe};
 
 pub trait MaximumBounds {
     /// Get the maximum bounds of the element(s) described by this object.
-    fn maximum_bounds(&self) -> (Vector3<f32>, Vector3<f32>);
+    fn maximum_bounds(&self) -> (Vector3<f64>, Vector3<f64>);
 }
 
 /// update the `min_coords` and `max_coords` if values from `coords` are smaller/greater than them.
@@ -15,12 +15,12 @@ pub trait MaximumBounds {
 /// * `min_coords`: The scene's minimum coordinates.
 /// * `max_coords`: The scene's maximum coordinates.
 fn update_maximum_bounds(
-    coords: &Vector3<f32>,
-    min_coords: &mut Vector3<f32>,
-    max_coords: &mut Vector3<f32>,
-    radius: Option<f32>,
+    coords: &Vector3<f64>,
+    min_coords: &mut Vector3<f64>,
+    max_coords: &mut Vector3<f64>,
+    radius: Option<f64>,
 ) {
-    let radius = radius.unwrap_or(0f32);
+    let radius = radius.unwrap_or(0f64);
     let x = coords.x;
     let y = coords.y;
     let z = coords.z;
@@ -45,15 +45,15 @@ fn update_maximum_bounds(
 }
 
 impl<const N: usize> MaximumBounds for SurfaceKeyframe<N> {
-    fn maximum_bounds(&self) -> (Vector3<f32>, Vector3<f32>) {
+    fn maximum_bounds(&self) -> (Vector3<f64>, Vector3<f64>) {
         maximum_bounds(&self.coords)
     }
 }
 
 impl MaximumBounds for Scene {
-    fn maximum_bounds(&self) -> (Vector3<f32>, Vector3<f32>) {
-        let mut min_coords: Vector3<f32> = Vector3::new(f32::MAX, f32::MAX, f32::MAX);
-        let mut max_coords: Vector3<f32> = Vector3::new(f32::MIN, f32::MIN, f32::MIN);
+    fn maximum_bounds(&self) -> (Vector3<f64>, Vector3<f64>) {
+        let mut min_coords: Vector3<f64> = Vector3::new(f64::MAX, f64::MAX, f64::MAX);
+        let mut max_coords: Vector3<f64> = Vector3::new(f64::MIN, f64::MIN, f64::MIN);
         for surface in &self.surfaces {
             match surface {
                 Surface::Interpolated(coordinates, _time, _material) => {
@@ -87,7 +87,7 @@ impl MaximumBounds for Scene {
         };
         match &self.emitter {
             Emitter::Interpolated(coordinates, _time, _emission_type) => {
-                update_maximum_bounds(coordinates, &mut min_coords, &mut max_coords, Some(0.1f32));
+                update_maximum_bounds(coordinates, &mut min_coords, &mut max_coords, Some(0.1f64));
             }
             Emitter::Keyframes(keyframes, _emission_type) => {
                 for keyframe in keyframes {
@@ -95,7 +95,7 @@ impl MaximumBounds for Scene {
                         &keyframe.coords,
                         &mut min_coords,
                         &mut max_coords,
-                        Some(0.1f32),
+                        Some(0.1f64),
                     );
                 }
             }
@@ -106,9 +106,9 @@ impl MaximumBounds for Scene {
 }
 
 /// Get the maximum bounds of the object described by the given coordinates.
-pub fn maximum_bounds(coordinates: &[Vector3<f32>]) -> (Vector3<f32>, Vector3<f32>) {
-    let mut min_coords: Vector3<f32> = Vector3::new(f32::MAX, f32::MAX, f32::MAX);
-    let mut max_coords: Vector3<f32> = Vector3::new(f32::MIN, f32::MIN, f32::MIN);
+pub fn maximum_bounds(coordinates: &[Vector3<f64>]) -> (Vector3<f64>, Vector3<f64>) {
+    let mut min_coords: Vector3<f64> = Vector3::new(f64::MAX, f64::MAX, f64::MAX);
+    let mut max_coords: Vector3<f64> = Vector3::new(f64::MIN, f64::MIN, f64::MIN);
     for coord in coordinates {
         update_maximum_bounds(coord, &mut min_coords, &mut max_coords, None);
     }
@@ -132,15 +132,15 @@ mod tests {
             receiver: Receiver::Keyframes(
                 vec![CoordinateKeyframe {
                     time: 0,
-                    coords: Vector3::new(0f32, 0f32, 0f32),
+                    coords: Vector3::new(0f64, 0f64, 0f64),
                 }],
-                0.1f32,
+                0.1f64,
             ),
             surfaces: vec![],
             emitter: Emitter::Keyframes(
                 vec![CoordinateKeyframe {
                     time: 0,
-                    coords: Vector3::new(0f32, 0f32, 0f32),
+                    coords: Vector3::new(0f64, 0f64, 0f64),
                 }],
                 EmissionType::Random,
             ),
@@ -152,8 +152,8 @@ mod tests {
         let scene = empty_scene();
         assert_eq!(
             (
-                Vector3::new(-0.1f32, -0.1f32, -0.1f32),
-                Vector3::new(0.1f32, 0.1f32, 0.1f32)
+                Vector3::new(-0.1f64, -0.1f64, -0.1f64),
+                Vector3::new(0.1f64, 0.1f64, 0.1f64)
             ),
             scene.maximum_bounds()
         );
@@ -166,25 +166,25 @@ mod tests {
                 vec![
                     CoordinateKeyframe {
                         time: 0,
-                        coords: Vector3::new(0f32, 0f32, 0f32),
+                        coords: Vector3::new(0f64, 0f64, 0f64),
                     },
                     CoordinateKeyframe {
                         time: 3,
-                        coords: Vector3::new(20f32, 10f32, 34f32),
+                        coords: Vector3::new(20f64, 10f64, 34f64),
                     },
                 ],
-                0.1f32,
+                0.1f64,
             ),
             surfaces: vec![],
             emitter: Emitter::Keyframes(
                 vec![
                     CoordinateKeyframe {
                         time: 0,
-                        coords: Vector3::new(0f32, 0f32, 0f32),
+                        coords: Vector3::new(0f64, 0f64, 0f64),
                     },
                     CoordinateKeyframe {
                         time: 3,
-                        coords: Vector3::new(-10f32, -20f32, -50f32),
+                        coords: Vector3::new(-10f64, -20f64, -50f64),
                     },
                 ],
                 EmissionType::Random,
@@ -193,8 +193,8 @@ mod tests {
 
         assert_eq!(
             (
-                Vector3::new(-10.1f32, -20.1f32, -50.1f32),
-                Vector3::new(20.1f32, 10.1f32, 34.1f32)
+                Vector3::new(-10.1f64, -20.1f64, -50.1f64),
+                Vector3::new(20.1f64, 10.1f64, 34.1f64)
             ),
             scene.maximum_bounds()
         );
@@ -207,11 +207,11 @@ mod tests {
                 vec![
                     CoordinateKeyframe {
                         time: 0,
-                        coords: Vector3::new(0f32, 0f32, 0f32),
+                        coords: Vector3::new(0f64, 0f64, 0f64),
                     },
                     CoordinateKeyframe {
                         time: 3,
-                        coords: Vector3::new(20f32, 10f32, 34f32),
+                        coords: Vector3::new(20f64, 10f64, 34f64),
                     },
                 ],
                 0.1,
@@ -222,17 +222,17 @@ mod tests {
                         SurfaceKeyframe {
                             time: 5,
                             coords: [
-                                Vector3::new(-10f32, -20f32, -30f32),
-                                Vector3::new(0f32, 2f32, 16f32),
-                                Vector3::new(0f32, 2f32, 15f32),
+                                Vector3::new(-10f64, -20f64, -30f64),
+                                Vector3::new(0f64, 2f64, 16f64),
+                                Vector3::new(0f64, 2f64, 15f64),
                             ],
                         },
                         SurfaceKeyframe {
                             time: 10,
                             coords: [
-                                Vector3::new(3f32, 2f32, 5f32),
-                                Vector3::new(8f32, 10f32, 12f32),
-                                Vector3::new(0f32, 2f32, 16f32),
+                                Vector3::new(3f64, 2f64, 5f64),
+                                Vector3::new(8f64, 10f64, 12f64),
+                                Vector3::new(0f64, 2f64, 16f64),
                             ],
                         },
                     ],
@@ -243,25 +243,25 @@ mod tests {
                         SurfaceKeyframe {
                             time: 5,
                             coords: [
-                                Vector3::new(0f32, 0f32, 0f32),
-                                Vector3::new(0f32, 2f32, 16f32),
-                                Vector3::new(0f32, 4f32, 16f32),
+                                Vector3::new(0f64, 0f64, 0f64),
+                                Vector3::new(0f64, 2f64, 16f64),
+                                Vector3::new(0f64, 4f64, 16f64),
                             ],
                         },
                         SurfaceKeyframe {
                             time: 10,
                             coords: [
-                                Vector3::new(3f32, 2f32, 5f32),
-                                Vector3::new(8f32, 10f32, 12f32),
-                                Vector3::new(0f32, 4f32, 16f32),
+                                Vector3::new(3f64, 2f64, 5f64),
+                                Vector3::new(8f64, 10f64, 12f64),
+                                Vector3::new(0f64, 4f64, 16f64),
                             ],
                         },
                         SurfaceKeyframe {
                             time: 15,
                             coords: [
-                                Vector3::new(0f32, 0f32, 0f32),
-                                Vector3::new(0f32, 2f32, 16f32),
-                                Vector3::new(0f32, 4f32, 16f32),
+                                Vector3::new(0f64, 0f64, 0f64),
+                                Vector3::new(0f64, 2f64, 16f64),
+                                Vector3::new(0f64, 4f64, 16f64),
                             ],
                         },
                     ],
@@ -271,19 +271,19 @@ mod tests {
             emitter: Emitter::Keyframes(vec![
                 CoordinateKeyframe {
                     time: 0,
-                    coords: Vector3::new(0f32, 0f32, 0f32),
+                    coords: Vector3::new(0f64, 0f64, 0f64),
                 },
                 CoordinateKeyframe {
                     time: 3,
-                    coords: Vector3::new(-10f32, -20f32, -50f32),
+                    coords: Vector3::new(-10f64, -20f64, -50f64),
                 },
             ], EmissionType::Random),
         };
 
         assert_eq!(
             (
-                Vector3::new(-10.1f32, -20.1f32, -50.1f32),
-                Vector3::new(20.1f32, 10.1f32, 34.1f32)
+                Vector3::new(-10.1f64, -20.1f64, -50.1f64),
+                Vector3::new(20.1f64, 10.1f64, 34.1f64)
             ),
             scene.maximum_bounds()
         );

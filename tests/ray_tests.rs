@@ -13,18 +13,18 @@ fn directly_hitting_receiver() {
     let scene = Scene {
         surfaces: vec![Surface::Interpolated(
             [
-                Vector3::new(-10f32, 10f32, -10f32),
-                Vector3::new(40f32, 10f32, -10f32),
-                Vector3::new(-10f32, 10f32, 40f32),
+                Vector3::new(-10f64, 10f64, -10f64),
+                Vector3::new(40f64, 10f64, -10f64),
+                Vector3::new(-10f64, 10f64, 40f64),
             ],
             0,
             Material {
                 absorption_coefficient: 0.9,
-                diffusion_coefficient: 0f32,
+                diffusion_coefficient: 0f64,
             },
         )],
-        receiver: Receiver::Interpolated(Vector3::new(20f32, 0f32, 0f32), 0.1f32, 0),
-        emitter: Emitter::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0, EmissionType::Random),
+        receiver: Receiver::Interpolated(Vector3::new(20f64, 0f64, 0f64), 0.1f64, 0),
+        emitter: Emitter::Interpolated(Vector3::new(0f64, 0f64, 0f64), 0, EmissionType::Random),
     };
     let chunks = scene.chunks::<typenum::U10>();
     let maximum_bounds = scene.maximum_bounds();
@@ -33,17 +33,17 @@ fn directly_hitting_receiver() {
         chunks,
         maximum_bounds,
     };
-    let direction = Vector3::new(1f32, 0f32, 0f32);
+    let direction = Vector3::new(1f64, 0f64, 0f64);
     let result = Ray::launch(
         direction,
-        Vector3::new(0f32, 0f32, 0f32),
+        Vector3::new(0f64, 0f64, 0f64),
         0,
         DEFAULT_PROPAGATION_SPEED,
         DEFAULT_SAMPLE_RATE,
         &scene_data,
     );
 
-    let expected = vec![(1f32, 2557u32)];
+    let expected = vec![(1f64, 2557u32)];
     assert_eq!(expected, result);
 }
 
@@ -52,18 +52,18 @@ fn hitting_receiver_after_one_bounce() {
     let scene = Scene {
         surfaces: vec![Surface::Interpolated(
             [
-                Vector3::new(-10f32, 10f32, -10f32),
-                Vector3::new(40f32, 10f32, -10f32),
-                Vector3::new(-10f32, 10f32, 40f32),
+                Vector3::new(-10f64, 10f64, -10f64),
+                Vector3::new(40f64, 10f64, -10f64),
+                Vector3::new(-10f64, 10f64, 40f64),
             ],
             0,
             Material {
                 absorption_coefficient: 0.9,
-                diffusion_coefficient: 0f32,
+                diffusion_coefficient: 0f64,
             },
         )],
-        receiver: Receiver::Interpolated(Vector3::new(20f32, 0f32, 0f32), 0.1f32, 0),
-        emitter: Emitter::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0, EmissionType::Random),
+        receiver: Receiver::Interpolated(Vector3::new(20f64, 0f64, 0f64), 0.1f64, 0),
+        emitter: Emitter::Interpolated(Vector3::new(0f64, 0f64, 0f64), 0, EmissionType::Random),
     };
     let chunks = scene.chunks::<typenum::U10>();
     let maximum_bounds = scene.maximum_bounds();
@@ -72,17 +72,17 @@ fn hitting_receiver_after_one_bounce() {
         chunks,
         maximum_bounds,
     };
-    let direction = Vector3::new(1f32, 1f32, 0f32);
+    let direction = Vector3::new(1f64, 1f64, 0f64);
     let result = Ray::launch(
         direction,
-        Vector3::new(0f32, 0f32, 0f32),
+        Vector3::new(0f64, 0f64, 0f64),
         0,
         DEFAULT_PROPAGATION_SPEED,
         DEFAULT_SAMPLE_RATE,
         &scene_data,
     );
 
-    let expected = vec![(0.9f32, 3621u32)];
+    let expected = vec![(0.9f64, 3621u32)];
     assert_eq!(expected, result);
 }
 
@@ -90,12 +90,12 @@ fn hitting_receiver_after_one_bounce() {
 fn unreachable_receiver() {
     let scene = Scene {
         surfaces: scene_builder::static_cube(
-            Vector3::new(-5f32, -5f32, -5f32),
-            Vector3::new(-5f32, -5f32, -5f32),
+            Vector3::new(-5f64, -5f64, -5f64),
+            Vector3::new(-5f64, -5f64, -5f64),
             MATERIAL_CONCRETE_WALL,
         ),
-        receiver: Receiver::Interpolated(Vector3::new(20f32, 0f32, 0f32), 0.1f32, 0),
-        emitter: Emitter::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0, EmissionType::Random),
+        receiver: Receiver::Interpolated(Vector3::new(20f64, 0f64, 0f64), 0.1f64, 0),
+        emitter: Emitter::Interpolated(Vector3::new(0f64, 0f64, 0f64), 0, EmissionType::Random),
     };
     let chunks = scene.chunks::<typenum::U10>();
     let maximum_bounds = scene.maximum_bounds();
@@ -104,17 +104,17 @@ fn unreachable_receiver() {
         chunks,
         maximum_bounds,
     };
-    let direction = Vector3::new(1f32, 1f32, 0f32);
+    let direction = Vector3::new(1f64, 1f64, 0f64);
     let result = Ray::launch(
         direction,
-        Vector3::new(0f32, 0f32, 0f32),
+        Vector3::new(0f64, 0f64, 0f64),
         0,
         DEFAULT_PROPAGATION_SPEED,
         DEFAULT_SAMPLE_RATE,
         &scene_data,
     );
 
-    let expected: Vec<(f32, u32)> = vec![];
+    let expected: Vec<(f64, u32)> = vec![];
     assert_eq!(expected, result);
 }
 
@@ -123,18 +123,18 @@ fn hitting_receiver_before_and_after_one_bounce() {
     let scene = Scene {
         surfaces: vec![Surface::Interpolated(
             [
-                Vector3::new(40f32, -10f32, -10f32),
-                Vector3::new(40f32, 40f32, -10f32),
-                Vector3::new(40f32, -100f32, 40f32),
+                Vector3::new(40f64, -10f64, -10f64),
+                Vector3::new(40f64, 40f64, -10f64),
+                Vector3::new(40f64, -100f64, 40f64),
             ],
             0,
             Material {
                 absorption_coefficient: 0.9,
-                diffusion_coefficient: 0f32,
+                diffusion_coefficient: 0f64,
             },
         )],
-        receiver: Receiver::Interpolated(Vector3::new(20f32, 0f32, 0f32), 0.1f32, 0),
-        emitter: Emitter::Interpolated(Vector3::new(0f32, 0f32, 0f32), 0, EmissionType::Random),
+        receiver: Receiver::Interpolated(Vector3::new(20f64, 0f64, 0f64), 0.1f64, 0),
+        emitter: Emitter::Interpolated(Vector3::new(0f64, 0f64, 0f64), 0, EmissionType::Random),
     };
     let chunks = scene.chunks::<typenum::U10>();
     let maximum_bounds = scene.maximum_bounds();
@@ -143,16 +143,16 @@ fn hitting_receiver_before_and_after_one_bounce() {
         chunks,
         maximum_bounds,
     };
-    let direction = Vector3::new(1f32, 0f32, 0f32);
+    let direction = Vector3::new(1f64, 0f64, 0f64);
     let result = Ray::launch(
         direction,
-        Vector3::new(0f32, 0f32, 0f32),
+        Vector3::new(0f64, 0f64, 0f64),
         0,
         DEFAULT_PROPAGATION_SPEED,
         DEFAULT_SAMPLE_RATE,
         &scene_data,
     );
 
-    let expected = vec![(1.0f32, 2557u32), (0.9f32, 5140u32)];
+    let expected = vec![(1.0f64, 2557u32), (0.9f64, 5140u32)];
     assert_eq!(expected, result);
 }
