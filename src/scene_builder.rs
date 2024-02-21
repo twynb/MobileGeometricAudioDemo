@@ -289,21 +289,25 @@ impl Default for SceneBuilder {
     }
 }
 
+/// A scene inside a static cube.
+/// The cube is 4x4x3 meters in size..
 pub fn static_cube_scene() -> Scene {
     SceneBuilder::new()
         .with_static_cube(
-            -10f64,
-            -10f64,
-            -10f64,
-            10f64,
-            10f64,
-            10f64,
+            -2f64,
+            -2f64,
+            -1.5f64,
+            2f64,
+            2f64,
+            1.5f64,
             MATERIAL_CONCRETE_WALL,
         )
         .with_emitter_at(0f64, 0f64, 1.2f64)
         .build()
 }
 
+/// A scene without surfaces,
+/// where the receiver is exactly 1 second of travelling at the speed of sound away from the emitter.
 pub fn static_receiver_scene() -> Scene {
     SceneBuilder::new()
         .with_directed_emission(1f64, 0f64, 0f64)
@@ -311,6 +315,8 @@ pub fn static_receiver_scene() -> Scene {
         .build()
 }
 
+/// A scene without surfaces, where the receiver starts 1 second of speed of sound travel away
+/// and approaches the emitter at 1/9th the speed of sound.
 pub fn approaching_receiver_scene(sample_rate: u32) -> Scene {
     SceneBuilder::new()
         .with_directed_emission(1f64, 0f64, 0f64)
@@ -327,7 +333,8 @@ pub fn approaching_receiver_scene(sample_rate: u32) -> Scene {
         .build()
 }
 
-
+/// A scene without surfaces, where the receiver starts 4 seconds of speed of sound travel away
+/// and approaches the emitter at 1/9th the speed of sound.
 pub fn long_approaching_receiver_scene(sample_rate: u32) -> Scene {
     SceneBuilder::new()
         .with_directed_emission(1f64, 0f64, 0f64)

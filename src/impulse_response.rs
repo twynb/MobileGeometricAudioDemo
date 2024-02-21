@@ -1,5 +1,8 @@
 use wav::BitDepth;
 
+/// Convert a set of intersection events into an impulse response.
+/// Each event (described as a combination of the energy and time)
+/// is stored in the IR buffer at its relevant time.
 #[allow(clippy::module_name_repetitions)]
 pub fn to_impulse_response(results: &[(f64, u32)], number_of_rays: u32) -> Vec<f64> {
     let buf_size = results
@@ -19,6 +22,8 @@ pub fn to_impulse_response(results: &[(f64, u32)], number_of_rays: u32) -> Vec<f
         .collect()
 }
 
+/// Apply a set of impulse responses to a set of audio data from a wav file.
+/// see `apply_to_data_internal` for details.
 pub fn apply_to_data(impulse_response: &[Vec<f64>], data: &BitDepth) -> BitDepth {
     match data {
         BitDepth::Eight(stream) => {
@@ -37,6 +42,9 @@ pub fn apply_to_data(impulse_response: &[Vec<f64>], data: &BitDepth) -> BitDepth
     }
 }
 
+/// Internal logic to apply a set of impulse responses to a set of `data` points.
+/// This assumes that there are at least as many `impulse_response` entries as there are `data` points.
+/// Each data point has the impulse response at the same time applied to it.
 fn apply_to_data_internal<T: num::Num + num::NumCast + Clone + Copy>(
     impulse_response: &[Vec<f64>],
     data: &[T],
@@ -58,6 +66,7 @@ fn apply_to_data_internal<T: num::Num + num::NumCast + Clone + Copy>(
     buffer
 }
 
+/// Apply a single impulse response to a single data point.
 pub fn apply_to_sample<T: num::Num + num::NumCast + Clone + Copy>(
     impulse_response: &[f64],
     sample: T,

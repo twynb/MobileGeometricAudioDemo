@@ -121,8 +121,9 @@ where
         }
     }
 
-    /// Simulate the given number of rays in this `Scene` for each sample in the given time span,
-    /// then collect all the impulse responses.
+    /// Simulate the given number of rays in this `Scene` for each sample in the given input,
+    /// then apply the impulse response.
+    /// see `simulate_for_time_span_internal` for details
     pub fn simulate_for_time_span(
         &self,
         input_data: &BitDepth,
@@ -173,6 +174,9 @@ where
         }
     }
 
+    /// Simulate the scene's impulse response for each data point,
+    /// then apply it to the relevant data point and collect the full result afterwards.
+    /// Processing is done in chunks.
     fn simulate_for_time_span_internal<T: Num + NumCast + Clone + Copy + Sync + Send + Bounded>(
         &self,
         data: &[T],
@@ -231,6 +235,7 @@ where
             .collect()
     }
 
+    /// Internal logic for `simulate_for_time_span_internal`
     fn simulate_for_chunk<T: Num + NumCast + Clone + Copy + Sync + Send>(
         &self,
         data_len: usize,
@@ -265,6 +270,7 @@ where
 
     /// Simulate the given number of rays at the given time in this `Scene`,
     /// then collect all the impulse responses.
+    /// If `do_snapshot_method` is true, a static version of the scene at `time` is taken and simulation is run through that instead.
     pub fn simulate_at_time(
         &self,
         time: u32,
