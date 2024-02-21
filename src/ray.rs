@@ -533,7 +533,7 @@ fn init_chunk_traversal_data_dimension(
             // we'd rather have it be a bit too small (=> nothing changes) than a bit too large (=> we don't return out where we should)
             bound: maths::trunc_to_n_significant_digits(
                 <f64 as From<u32>>::from(num_chunks - chunk_index) * delta_direction,
-                4,
+                6,
             ) as f64,
         }
     } else {
@@ -550,7 +550,7 @@ fn init_chunk_traversal_data_dimension(
             // we'd rather have it be a bit too small (=> nothing changes) than a bit too large (=> we don't return out where we should)
             bound: maths::trunc_to_n_significant_digits(
                 <f64 as From<u32>>::from(chunk_index + 1) * delta_direction,
-                4,
+                6,
             ) as f64,
         }
     }

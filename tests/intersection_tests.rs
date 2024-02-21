@@ -133,6 +133,24 @@ fn clearly_hit_static_receiver_velocity_not_1() {
 }
 
 #[test]
+fn clearly_hit_distant_static_receiver() {
+    let receiver = Receiver::Interpolated(Vector3::new(1373.2, 0f64, 0f64), 0.1, 0);
+
+    let hitting_ray: Ray = Ray::new(
+        Unit::new_normalize(Vector3::new(1f64, 0f64, 0f64)),
+        Vector3::new(0f64, 0f64, 0f64),
+        1f64,
+        0,
+        DEFAULT_PROPAGATION_SPEED / DEFAULT_SAMPLE_RATE,
+    );
+
+    assert_intersection_equals(
+        Some(((1373.1 * DEFAULT_SAMPLE_RATE/ DEFAULT_PROPAGATION_SPEED).round() as u32, Vector3::new(1373.1, 0f64, 0f64))),
+        intersect_ray_and_receiver(&hitting_ray, &receiver, 0, 300000),
+    );
+}
+
+#[test]
 fn miss_static_receiver_because_time() {
     let receiver = static_receiver();
 

@@ -276,10 +276,10 @@ where
         let mut scene_data = self;
         let interp_scene_data;
         if do_snapshot_method {
-            let scene = self.scene.at_time(time);
-            let chunks = scene.chunks::<C>();
+            let interp_scene = self.scene.at_time(time);
+            let chunks = interp_scene.chunks::<C>();
             interp_scene_data = SceneData {
-                scene,
+                scene: interp_scene,
                 chunks,
                 maximum_bounds: self.maximum_bounds,
             };
