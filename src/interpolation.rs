@@ -1,7 +1,7 @@
 use nalgebra::Vector3;
 use num::{Num, NumCast};
 
-use crate::scene::{CoordinateKeyframe, Emitter, Receiver, Surface, SurfaceKeyframe};
+use crate::scene::{CoordinateKeyframe, Emitter, Receiver, Scene, Surface, SurfaceKeyframe};
 
 pub trait Interpolation {
     /// Get a version of this object at the given time.
@@ -264,6 +264,23 @@ impl<const N: usize> Interpolation for Surface<N> {
     }
 }
 
+impl Interpolation for Scene {
+    fn at_time(&self, time: u32) -> Self {
+        let surfaces = self
+            .surfaces
+            .iter()
+            .map(|surface| surface.at_time(time))
+            .collect();
+        let receiver = self.receiver.at_time(time);
+        let emitter = self.emitter.at_time(time);
+        Self {
+            surfaces,
+            receiver,
+            emitter,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use nalgebra::Vector3;
@@ -328,9 +345,9 @@ mod tests {
         ];
         let time = 7;
         let expected = vec![
-                Vector3::new(18f64, 20f64, 38f64),
-                Vector3::new(3.1999998f64, 5.2f64, 14.4f64),
-            ];
+            Vector3::new(18f64, 20f64, 38f64),
+            Vector3::new(3.1999998f64, 5.2f64, 14.4f64),
+        ];
         let result = interpolate_surface_keyframes(&keyframes, time);
         assert_eq!(expected.len(), result.len());
         for idx in 0..expected.len() {
@@ -431,7 +448,7 @@ mod tests {
         let expected = Vector3::new(7.625f64, 1.95f64, 17.5f64);
         assert_vector_abs_diff_eq(
             expected,
-            interpolate_coordinates(&coords1, &coords2, interp_position)
+            interpolate_coordinates(&coords1, &coords2, interp_position),
         )
     }
 

@@ -12,15 +12,26 @@ fn main() {
     let mut scene_index: Option<u32> = None;
     let mut number_of_rays: u32 = DEFAULT_NUMBER_OF_RAYS;
     let mut scaling_factor: f64 = DEFAULT_NUMBER_OF_RAYS as f64;
+    let mut do_snapshot_method: bool = false;
+    let mut out_fname: &str = "result.wav";
 
     for arg in args.iter().skip(1) {
         let arg_split: Vec<&str> = arg.split('=').collect();
-        assert!(arg_split.len() == 2, "Unknown argument {arg}");
         match arg_split[0] {
             "--fname" => input_fname = Some(arg_split[1]),
             "--scene" => scene_index = arg_split[1].parse::<u32>().ok(),
-            "--rays" => number_of_rays = arg_split[1].parse::<u32>().unwrap_or_else(|_| panic!("\"--rays\" needs to be passed a number!")),
-            "--scaling-factor" => scaling_factor = arg_split[1].parse::<f64>().unwrap_or_else(|_| panic!("\"--rays\" needs to be passed a number!")),
+            "--rays" => {
+                number_of_rays = arg_split[1]
+                    .parse::<u32>()
+                    .unwrap_or_else(|_| panic!("\"--rays\" needs to be passed a number!"))
+            }
+            "--scaling-factor" => {
+                scaling_factor = arg_split[1]
+                    .parse::<f64>()
+                    .unwrap_or_else(|_| panic!("\"--rays\" needs to be passed a number!"))
+            }
+            "--snapshot-method" => do_snapshot_method = true,
+            "--outfile" => out_fname = arg_split[1],
             _ => panic!("Unknown argument {}", arg_split[0]),
         };
     }
@@ -49,6 +60,7 @@ fn main() {
         0 => scene_builder::static_cube_scene(),
         1 => scene_builder::static_receiver_scene(),
         2 => scene_builder::approaching_receiver_scene(header.sampling_rate),
+        3 => scene_builder::long_approaching_receiver_scene(header.sampling_rate),
         _ => {
             println!("Invalid scene index! The following scene indices are supported:");
             print_supported_scenes();
@@ -58,7 +70,8 @@ fn main() {
     let scene_name = match scene_index {
         0 => "static cube",
         1 => "static receiver",
-        2 => "approaching receiver",
+        2 => "approaching receiver 1s",
+        3 => "approaching receiver 4s",
         _ => "error",
     };
     println!("Selected scene #{scene_index}: \"{scene_name}\".");
@@ -72,6 +85,7 @@ fn main() {
         DEFAULT_PROPAGATION_SPEED,
         header.sampling_rate as f64,
         1f64 / scaling_factor,
+        do_snapshot_method,
     );
     let elapsed = time_start.elapsed().as_secs();
     println!(
@@ -81,7 +95,7 @@ fn main() {
         elapsed % 60
     );
 
-    let mut output_file = std::fs::File::create(std::path::Path::new("result.wav"))
+    let mut output_file = std::fs::File::create(std::path::Path::new(out_fname))
         .unwrap_or_else(|_| panic!("Output file couldn't be opened!"));
     wav::write(header, &result, &mut output_file)
         .unwrap_or_else(|_| panic!("Output file couldn't be written to!"));
@@ -91,5 +105,6 @@ fn main() {
 fn print_supported_scenes() {
     println!("\t0 - Static Cube");
     println!("\t1 - Static Receiver");
-    println!("\t2 - Approaching Receiver");
+    println!("\t2 - Approaching Receiver 1s");
+    println!("\t3 - Approaching Receiver 4s");
 }

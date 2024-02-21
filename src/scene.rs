@@ -130,6 +130,7 @@ where
         velocity: f64,
         sample_rate: f64,
         scaling_factor: f64,
+        do_snapshot_method: bool,
     ) -> BitDepth {
         match input_data {
             BitDepth::Eight(data) => BitDepth::Eight(self.simulate_for_time_span_internal(
@@ -138,6 +139,7 @@ where
                 velocity,
                 sample_rate,
                 scaling_factor,
+                do_snapshot_method,
             )),
             BitDepth::Sixteen(data) => BitDepth::Sixteen(self.simulate_for_time_span_internal(
                 data,
@@ -145,6 +147,7 @@ where
                 velocity,
                 sample_rate,
                 scaling_factor,
+                do_snapshot_method,
             )),
             BitDepth::TwentyFour(data) => {
                 BitDepth::TwentyFour(self.simulate_for_time_span_internal(
@@ -153,6 +156,7 @@ where
                     velocity,
                     sample_rate,
                     scaling_factor,
+                    do_snapshot_method,
                 ))
             }
             BitDepth::ThirtyTwoFloat(data) => {
@@ -162,6 +166,7 @@ where
                     velocity,
                     sample_rate,
                     scaling_factor,
+                    do_snapshot_method,
                 ))
             }
             BitDepth::Empty => BitDepth::Empty,
@@ -175,6 +180,7 @@ where
         velocity: f64,
         sample_rate: f64,
         scaling_factor: f64,
+        do_snapshot_method: bool,
     ) -> Vec<T> {
         let buffers: Vec<Vec<f64>> = data
             .iter()
@@ -192,6 +198,7 @@ where
                     velocity,
                     sample_rate,
                     scaling_factor,
+                    do_snapshot_method,
                 )
             })
             .collect();
@@ -232,11 +239,17 @@ where
         velocity: f64,
         sample_rate: f64,
         scaling_factor: f64,
+        do_snapshot_method: bool,
     ) -> Vec<f64> {
         let mut buffer: Vec<f64> = vec![0f64; data_len];
         for (idx, value) in chunk {
-            let impulse_response =
-                self.simulate_at_time(*idx as u32, number_of_rays, velocity, sample_rate);
+            let impulse_response = self.simulate_at_time(
+                *idx as u32,
+                number_of_rays,
+                velocity,
+                sample_rate,
+                do_snapshot_method,
+            );
             let buffer_to_add =
                 impulse_response::apply_to_sample(&impulse_response, *value, *idx, scaling_factor);
             if buffer.len() < buffer_to_add.len() {
@@ -258,9 +271,23 @@ where
         number_of_rays: u32,
         velocity: f64,
         sample_rate: f64,
+        do_snapshot_method: bool,
     ) -> Vec<f64> {
+        let mut scene_data = self;
+        let interp_scene_data;
+        if do_snapshot_method {
+            let scene = self.scene.at_time(time);
+            let chunks = scene.chunks::<C>();
+            interp_scene_data = SceneData {
+                scene,
+                chunks,
+                maximum_bounds: self.maximum_bounds,
+            };
+            scene_data = &interp_scene_data
+        }
+
         let rt_results: Vec<(f64, u32)> = (0..number_of_rays)
-            .flat_map(|_| self.launch_ray(time, velocity, sample_rate))
+            .flat_map(|_| scene_data.launch_ray(time, velocity, sample_rate))
             .collect();
         to_impulse_response(&rt_results, number_of_rays)
     }

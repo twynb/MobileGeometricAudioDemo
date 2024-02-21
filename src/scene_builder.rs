@@ -326,3 +326,20 @@ pub fn approaching_receiver_scene(sample_rate: u32) -> Scene {
         ])
         .build()
 }
+
+
+pub fn long_approaching_receiver_scene(sample_rate: u32) -> Scene {
+    SceneBuilder::new()
+        .with_directed_emission(1f64, 0f64, 0f64)
+        .with_receiver_keyframes(vec![
+            CoordinateKeyframe {
+                coords: Vector3::new(343.3f64 * 4f64, 0f64, 0f64),
+                time: 0,
+            },
+            CoordinateKeyframe {
+                coords: Vector3::new(0f64, 0f64, 0f64),
+                time: sample_rate * 9 * 4,
+            },
+        ])
+        .build()
+}

@@ -1,4 +1,5 @@
 /target
 .vscode/
 bacon.toml
-result.wav
+*.wav
+!testfiles/*.wav
