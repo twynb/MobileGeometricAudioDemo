@@ -1,4 +1,7 @@
-use std::ops::Mul;
+use std::{
+    ops::Mul,
+    sync::{Arc, Mutex},
+};
 
 use generic_array::ArrayLength;
 use nalgebra::Vector3;
@@ -132,6 +135,7 @@ where
         sample_rate: f64,
         scaling_factor: f64,
         do_snapshot_method: bool,
+        progress_counter: &Arc<Mutex<u32>>,
     ) -> BitDepth {
         match input_data {
             BitDepth::Eight(data) => BitDepth::Eight(self.simulate_for_time_span_internal(
@@ -141,6 +145,7 @@ where
                 sample_rate,
                 scaling_factor,
                 do_snapshot_method,
+                progress_counter,
             )),
             BitDepth::Sixteen(data) => BitDepth::Sixteen(self.simulate_for_time_span_internal(
                 data,
@@ -149,6 +154,7 @@ where
                 sample_rate,
                 scaling_factor,
                 do_snapshot_method,
+                progress_counter,
             )),
             BitDepth::TwentyFour(data) => {
                 BitDepth::TwentyFour(self.simulate_for_time_span_internal(
@@ -158,6 +164,7 @@ where
                     sample_rate,
                     scaling_factor,
                     do_snapshot_method,
+                    progress_counter,
                 ))
             }
             BitDepth::ThirtyTwoFloat(data) => {
@@ -168,6 +175,7 @@ where
                     sample_rate,
                     scaling_factor,
                     do_snapshot_method,
+                    progress_counter,
                 ))
             }
             BitDepth::Empty => BitDepth::Empty,
@@ -185,6 +193,7 @@ where
         sample_rate: f64,
         scaling_factor: f64,
         do_snapshot_method: bool,
+        progress_counter: &Arc<Mutex<u32>>,
     ) -> Vec<T> {
         let buffers: Vec<Vec<f64>> = data
             .iter()
@@ -194,7 +203,11 @@ where
             .par_chunks(1000)
             // .chunks(1000)
             .map(|chunk| {
-                println!("{}", chunk[0].0);
+                {
+                    let cloned_counter = Arc::clone(progress_counter);
+                    let mut unlocked = cloned_counter.lock().unwrap();
+                    *unlocked += 1;
+                }
                 self.simulate_for_chunk(
                     data.len(),
                     chunk,

@@ -1,4 +1,6 @@
-use std::time::Instant;
+use std::{
+    sync::{Arc, Mutex}, thread::{self, sleep}, time::Instant
+};
 
 use demo::{ray::DEFAULT_PROPAGATION_SPEED, scene::SceneData, scene_builder};
 
@@ -75,8 +77,11 @@ fn main() {
         _ => "error",
     };
     println!("Selected scene #{scene_index}: \"{scene_name}\".");
-
     let scene_data = SceneData::<typenum::U10>::create_for_scene(scene);
+
+    let progress_counter = Arc::new(Mutex::new(0));
+    spawn_progress_counter_thread(input_sound_len, &progress_counter);
+
     println!("Calculating and applying {input_sound_len} impulse responses with {number_of_rays} rays each, this will take a loooong while...");
     let time_start = Instant::now();
     let result = scene_data.simulate_for_time_span(
@@ -86,6 +91,7 @@ fn main() {
         header.sampling_rate as f64,
         1f64 / scaling_factor,
         do_snapshot_method,
+        &progress_counter,
     );
     let elapsed = time_start.elapsed().as_secs();
     println!(
@@ -107,4 +113,23 @@ fn print_supported_scenes() {
     println!("\t1 - Static Receiver");
     println!("\t2 - Approaching Receiver 1s");
     println!("\t3 - Approaching Receiver 4s");
+}
+
+fn spawn_progress_counter_thread(input_sound_len: usize, progress_counter: &Arc<Mutex<u32>>) {
+    let number_of_chunks = (input_sound_len / 1000) as u32 + u32::from(input_sound_len % 1000 != 0);
+    let cloned_counter = Arc::clone(progress_counter);
+    thread::spawn(move || {
+        loop {
+            let current_value = {
+                let value = cloned_counter.lock().unwrap();
+                *value
+            };
+            print!("\r{current_value}/{number_of_chunks}");
+            if current_value >= number_of_chunks {
+                println!();
+                break;
+            }
+            sleep(std::time::Duration::from_millis(100))
+        }
+    });
 }
