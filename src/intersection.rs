@@ -66,9 +66,9 @@ fn intersection_check_surface_keyframes(
 ) -> Option<(u32, Vector3<f64>)> {
     let (d3, d2, d1, d0) = surface_polynomial_parameters(ray, keyframe_first, keyframe_second);
 
-    let intersections = maths::solve_cubic_equation(d3, d2, d1, d0);
+    let intersections = roots::find_roots_cubic(d3, d2, d1, d0);
     let mut intersection: Option<(u32, Vector3<f64>)> = None;
-    for intersection_time in intersections {
+    for intersection_time in intersections.as_ref() {
         if (intersection_time.floor() as u32) < time_entry
             || intersection_time.ceil() as u32 > time_exit
         {
@@ -81,12 +81,12 @@ fn intersection_check_surface_keyframes(
             let Some(surface_coords) = interpolate_two_surface_keyframes(
                 keyframe_first,
                 keyframe_second,
-                intersection_time,
+                *intersection_time,
             ) else {
                 continue;
             };
 
-            let ray_coords = ray.coords_at_time(intersection_time);
+            let ray_coords = ray.coords_at_time(*intersection_time);
 
             if maths::is_point_inside_triangle(&ray_coords, &surface_coords) {
                 intersection = Some((intersection_time.round() as u32, ray_coords));
@@ -311,16 +311,16 @@ fn intersection_check_receiver_keyframes(
     time_exit: u32,
 ) -> Option<(u32, Vector3<f64>)> {
     let (d2, d1, d0) = receiver_polynomial_parameters(ray, keyframe_first, keyframe_second, radius);
-    let intersections = maths::solve_quadratic_equation(d2, d1, d0);
+    let intersections = roots::find_roots_quadratic(d2, d1, d0);
     let mut intersection: Option<f64> = None;
-    for intersection_time in intersections {
+    for intersection_time in intersections.as_ref() {
         if (intersection_time.floor() as u32) < time_entry
             || intersection_time.ceil() as u32 > time_exit
         {
             continue;
         }
-        if intersection.map_or(true, |time| time > intersection_time) {
-            intersection = Some(intersection_time);
+        if intersection.map_or(true, |time| time > *intersection_time) {
+            intersection = Some(*intersection_time);
         }
     }
 
@@ -357,10 +357,11 @@ fn receiver_polynomial_parameters(
             - delta_time * p_minus_ck2_minus_t0_v.dot(&delta_center)
             + second_time * delta_time * velocity.dot(&delta_center)
             - second_time * delta_center.norm_squared()), // d_1
-        delta_time.powi(2) * (p_minus_ck2.norm_squared()
-            + 2f64 * ray_time * (-1f64 * p_minus_ck2).dot(&velocity)
-            + ray_time.powi(2) * velocity.norm_squared()
-            - radius.powi(2))
+        delta_time.powi(2)
+            * (p_minus_ck2.norm_squared()
+                + 2f64 * ray_time * (-1f64 * p_minus_ck2).dot(&velocity)
+                + ray_time.powi(2) * velocity.norm_squared()
+                - radius.powi(2))
             + 2f64 * second_time * delta_time * p_minus_ck2_minus_t0_v.dot(&delta_center)
             + second_time.powi(2) * delta_center.norm_squared(), // d_0
     )
@@ -392,7 +393,10 @@ fn intersection_check_receiver_coordinates(
     }
     // non-optimised/readable version
     // let time_angle_to_result = (radius.powi(2) - time_coords_to_angle.powi(2)).abs().sqrt();
-    let time_angle_to_result = radius.mul_add(radius, - time_coords_to_angle.powi(2)).abs().sqrt();
+    let time_angle_to_result = radius
+        .mul_add(radius, -time_coords_to_angle.powi(2))
+        .abs()
+        .sqrt();
     let intersection_time =
         (time_origin_to_angle - time_angle_to_result) / ray.velocity + ray.time as f64;
 
