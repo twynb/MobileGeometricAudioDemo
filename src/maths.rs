@@ -3,8 +3,8 @@ use nalgebra::{Complex, ComplexField, Vector3};
 use num::Zero;
 
 trait RealCubeRoot {
-    /// This is an altered version of Complex's usual cbrt() implementation.
-    /// usually, complex.cbrt() will not provide the real cube root for negative
+    /// This is an altered version of Complex's usual `cbrt()` implementation.
+    /// usually, `complex.cbrt()` will not provide the real cube root for negative
     /// real numbers and instead gives a complex number.
     /// since we generally want to work with real numbers where possible, this breaks
     /// our system.

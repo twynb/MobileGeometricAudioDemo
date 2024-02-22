@@ -84,7 +84,7 @@ fn interpolate_single_coordinate(coord1: f64, coord2: f64, interp_position: f64)
 ///
 /// * if `interpolate_two_coordinate_keyframes` fails. This shouldn't be able to happen and can be ignored.
 pub fn interpolate_coordinate_keyframes(
-    keyframes: &Vec<CoordinateKeyframe>,
+    keyframes: &[CoordinateKeyframe],
     time: u32,
 ) -> Vector3<f64> {
     // return out early if we're after the last keyframe anyway
@@ -151,7 +151,7 @@ pub fn interpolate_two_coordinate_keyframes<T: Num + NumCast + PartialOrd + Copy
 /// * `keyframes`: The keyframes to interpolate between. Must be sorted by time.
 /// * `time`: The time.
 fn interpolate_surface_keyframes<const N: usize>(
-    keyframes: &Vec<SurfaceKeyframe<N>>,
+    keyframes: &[SurfaceKeyframe<N>],
     time: u32,
 ) -> [Vector3<f64>; N] {
     // return out early if we're after the last keyframe, otherwise we'd need to iterate over all the keyframes first

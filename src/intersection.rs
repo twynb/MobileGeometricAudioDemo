@@ -104,50 +104,54 @@ fn surface_polynomial_parameters(
     keyframe_second: &SurfaceKeyframe<3>,
 ) -> (f64, f64, f64, f64) {
     let (g2, g1, g0) = surface_cross_product_parameters(keyframe_first, keyframe_second);
-    let ray_time = ray.time as f64; // t_0
+    let ray_time = f64::from(ray.time); // t_0
     let velocity = ray.velocity * ray.direction.into_inner();
-    let delta_time = (keyframe_second.time - keyframe_first.time) as f64;
+    let delta_time = f64::from(keyframe_second.time - keyframe_first.time);
     let delta_point_1 = keyframe_second.coords[0] - keyframe_first.coords[0];
-    let second_div_delta_time = keyframe_second.time as f64 / delta_time;
-    let g2_dot_diff_point_1 = g2.dot(&delta_point_1);
-    let g1_dot_diff_point_1 = g1.dot(&delta_point_1);
-    let g0_dot_diff_point_1 = g0.dot(&delta_point_1);
+    let g2_dot_delta_p1_div_delta_time = g2.dot(&delta_point_1) / delta_time;
+    let g1_dot_delta_p1_div_delta_time = g1.dot(&delta_point_1) / delta_time;
+    let g0_dot_delta_p1_div_delta_time = g0.dot(&delta_point_1) / delta_time;
+    let g2_dot_velocity = g2.dot(&velocity);
+    let g1_dot_velocity = g1.dot(&velocity);
+    let g0_dot_velocity = g0.dot(&velocity);
     /*
-    Non-optimised (readable) version
+       // Non-optimised (readable) version
+       (
+           g2_dot_velocity - g2_dot_delta_p1_div_delta_time, // d_3
+           g2.dot(&ray.origin) - ray_time * g2_dot_velocity - g2.dot(&keyframe_second.coords[0])
+               + g2_dot_delta_p1_div_delta_time * f64::from(keyframe_second.time)
+               + g1_dot_velocity
+               - g1_dot_delta_p1_div_delta_time, // d_2
+           g1.dot(&ray.origin) - ray_time * g1_dot_velocity - g1.dot(&keyframe_second.coords[0])
+               + g1_dot_delta_p1_div_delta_time * f64::from(keyframe_second.time)
+               + g0_dot_velocity
+               - g0_dot_delta_p1_div_delta_time, // d_1
+           g0.dot(&ray.origin) - ray_time * g0_dot_velocity - g0.dot(&keyframe_second.coords[0])
+               + g0_dot_delta_p1_div_delta_time * f64::from(keyframe_second.time), // d_0
+       )
+    */
     (
-        g2.dot(&velocity) - g2_dot_diff_point_1 / delta_time, // d_3
-        g2.dot(&ray.origin) - ray_time * g2.dot(&velocity) - g2.dot(&keyframe_second.coords[0])
-            + g2_dot_diff_point_1 * second_div_delta_time
-            + g1.dot(&velocity)
-            - g1_dot_diff_point_1 / delta_time, // d_2
-        g1.dot(&ray.origin) - ray_time * g1.dot(&velocity) - g1.dot(&keyframe_second.coords[0])
-            + g1_dot_diff_point_1 * second_div_delta_time
-            + g0.dot(&velocity)
-            - g0_dot_diff_point_1 / delta_time, // d_1
-        g0.dot(&ray.origin) - ray_time * g0.dot(&velocity) - g0.dot(&keyframe_second.coords[0])
-            + g0_dot_diff_point_1 * second_div_delta_time, // d_0
-    )
-     */
-    (
-        g2.dot(&velocity) - g2_dot_diff_point_1 / delta_time, // d_3
-        g2_dot_diff_point_1.mul_add(
-            second_div_delta_time,
-            ray_time.mul_add(-g2.dot(&velocity), g2.dot(&ray.origin))
-                - g2.dot(&keyframe_second.coords[0]),
-        ) + g1.dot(&velocity)
-            - g1_dot_diff_point_1 / delta_time, // d_2
-        g1_dot_diff_point_1.mul_add(
-            second_div_delta_time,
-            ray_time.mul_add(
-                -g1.dot(&velocity),
-                g1.dot(&ray.origin) - g1.dot(&keyframe_second.coords[0]),
-            ),
-        ) + g0.dot(&velocity)
-            - g0_dot_diff_point_1 / delta_time, // d_1
-        g0_dot_diff_point_1.mul_add(
-            second_div_delta_time,
-            ray_time.mul_add(
-                -g0.dot(&velocity),
+        g2_dot_velocity - g2_dot_delta_p1_div_delta_time, // d_3
+        ray_time.mul_add(
+            -g2_dot_velocity,
+            g2.dot(&ray.origin) - g2.dot(&keyframe_second.coords[0])
+                + g2_dot_delta_p1_div_delta_time.mul_add(
+                    f64::from(keyframe_second.time),
+                    g1_dot_velocity - g1_dot_delta_p1_div_delta_time,
+                ),
+        ), // d_2
+        ray_time.mul_add(
+            -g1_dot_velocity,
+            g1.dot(&ray.origin) - g1.dot(&keyframe_second.coords[0])
+                + g1_dot_delta_p1_div_delta_time.mul_add(
+                    f64::from(keyframe_second.time),
+                    g0_dot_velocity - g0_dot_delta_p1_div_delta_time,
+                ),
+        ), // d_1
+        ray_time.mul_add(
+            -g0_dot_velocity,
+            g0_dot_delta_p1_div_delta_time.mul_add(
+                f64::from(keyframe_second.time),
                 g0.dot(&ray.origin) - g0.dot(&keyframe_second.coords[0]),
             ),
         ), // d_0
@@ -159,8 +163,8 @@ fn surface_cross_product_parameters(
     keyframe_first: &SurfaceKeyframe<3>,
     keyframe_second: &SurfaceKeyframe<3>,
 ) -> (Vector3<f64>, Vector3<f64>, Vector3<f64>) {
-    let second_time = keyframe_second.time as f64;
-    let delta_time = (keyframe_second.time - keyframe_first.time) as f64;
+    let second_time = f64::from(keyframe_second.time);
+    let delta_time = f64::from(keyframe_second.time - keyframe_first.time);
     let two_three = surface_sub_cross_product_parameters(
         &keyframe_first.coords[1],
         &keyframe_second.coords[1],
@@ -235,7 +239,7 @@ fn intersection_check_surface_coordinates(
     }
     let intersection_time = -(ray.origin - coords[0]).dot(&normal)
         / (ray.velocity * direction_dot_normal)
-        + ray.time as f64;
+        + f64::from(ray.time);
     if (intersection_time.trunc() as u32) < time_entry
         || intersection_time.ceil() as u32 > time_exit
     {
@@ -340,30 +344,61 @@ fn receiver_polynomial_parameters(
     keyframe_second: &CoordinateKeyframe,
     radius: f64,
 ) -> (f64, f64, f64) {
-    let ray_time = ray.time as f64;
-    let velocity = ray.velocity * ray.direction.into_inner();
-    let delta_time = (keyframe_second.time - keyframe_first.time) as f64;
-    let second_time = keyframe_second.time as f64;
-    let delta_center = keyframe_second.coords - keyframe_first.coords;
     let p_minus_ck2 = ray.origin - keyframe_second.coords;
+    let ray_time = f64::from(ray.time);
+    let velocity = ray.velocity * ray.direction.into_inner();
+    let delta_time = f64::from(keyframe_second.time - keyframe_first.time);
+    let delta_time_squared = delta_time.powi(2);
+    let second_time = f64::from(keyframe_second.time);
+    let delta_center = keyframe_second.coords - keyframe_first.coords;
     let p_minus_ck2_minus_t0_v = p_minus_ck2 - ray_time * velocity;
+    let velocity_norm = velocity.norm_squared();
+    let delta_center_norm = delta_center.norm_squared();
+    let velocity_dot_delta_center = velocity.dot(&delta_center);
+    let p_minus_ck2_minus_t0_v_dot_delta_center = p_minus_ck2_minus_t0_v.dot(&delta_center);
     /*
-    Unoptimized (readable) version:
-     */
+    // Unoptimized (readable) version:
     (
-        delta_time.powi(2) * velocity.norm_squared() + delta_center.norm_squared()
-            - 2f64 * delta_time * velocity.dot(&delta_center), // d_2
-        2f64 * (delta_time.powi(2) * p_minus_ck2_minus_t0_v.dot(&velocity)
-            - delta_time * p_minus_ck2_minus_t0_v.dot(&delta_center)
-            + second_time * delta_time * velocity.dot(&delta_center)
-            - second_time * delta_center.norm_squared()), // d_1
-        delta_time.powi(2)
+        delta_time_squared * velocity_norm + delta_center_norm
+            - 2f64 * delta_time * velocity_dot_delta_center, // d_2
+        2f64 * (delta_time_squared * p_minus_ck2_minus_t0_v.dot(&velocity)
+            - delta_time * p_minus_ck2_minus_t0_v_dot_delta_center
+            + second_time * delta_time * velocity_dot_delta_center
+            - second_time * delta_center_norm), // d_1
+        delta_time_squared
             * (p_minus_ck2.norm_squared()
                 + 2f64 * ray_time * (-1f64 * p_minus_ck2).dot(&velocity)
-                + ray_time.powi(2) * velocity.norm_squared()
+                + ray_time.powi(2) * velocity_norm
                 - radius.powi(2))
-            + 2f64 * second_time * delta_time * p_minus_ck2_minus_t0_v.dot(&delta_center)
-            + second_time.powi(2) * delta_center.norm_squared(), // d_0
+            + 2f64 * second_time * delta_time * p_minus_ck2_minus_t0_v_dot_delta_center
+            + second_time.powi(2) * delta_center_norm, // d_0
+    )
+     */
+    (
+        delta_time_squared.mul_add(
+            velocity_norm,
+            delta_time.mul_add(-2f64 * velocity_dot_delta_center, delta_center_norm),
+        ), // d_2
+        2f64 * (delta_time_squared.mul_add(
+            p_minus_ck2_minus_t0_v.dot(&velocity),
+            p_minus_ck2_minus_t0_v_dot_delta_center.mul_add(
+                -delta_time,
+                second_time * delta_time.mul_add(velocity_dot_delta_center, -delta_center_norm),
+            ),
+        )), // d_1
+        delta_time_squared.mul_add(
+            2f64.mul_add(
+                ray_time * (-1f64 * p_minus_ck2).dot(&velocity),
+                velocity_norm.mul_add(
+                    ray_time.powi(2),
+                    radius.mul_add(-radius, p_minus_ck2.norm_squared()),
+                ),
+            ),
+            delta_center_norm.mul_add(
+                second_time.powi(2),
+                2f64 * second_time * delta_time * p_minus_ck2_minus_t0_v_dot_delta_center,
+            ),
+        ), // d_0
     )
 }
 
@@ -398,7 +433,7 @@ fn intersection_check_receiver_coordinates(
         .abs()
         .sqrt();
     let intersection_time =
-        (time_origin_to_angle - time_angle_to_result) / ray.velocity + ray.time as f64;
+        (time_origin_to_angle - time_angle_to_result) / ray.velocity + f64::from(ray.time);
 
     if (intersection_time.trunc() as u32) < time_entry
         || intersection_time.ceil() as u32 > time_exit

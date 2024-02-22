@@ -15,7 +15,7 @@ pub fn to_impulse_response(results: &[(f64, u32)], number_of_rays: u32) -> Vec<f
     for result in results {
         impulse_response_buffer[result.1 as usize] += result.0;
     }
-    let number_of_rays_float = number_of_rays as f64;
+    let number_of_rays_float = f64::from(number_of_rays);
     impulse_response_buffer
         .iter()
         .map(|val| val / number_of_rays_float)

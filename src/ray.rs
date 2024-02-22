@@ -459,7 +459,7 @@ impl Ray {
                 scene_data
                     .chunks
                     .size_x
-                    .mul_add(chunk_indices.0 as f64, scene_data.chunks.chunk_starts.x),
+                    .mul_add(<f64 as From<u32>>::from(chunk_indices.0), scene_data.chunks.chunk_starts.x),
                 self.time,
                 self.velocity,
                 C::to_u32(),
@@ -473,7 +473,7 @@ impl Ray {
                 scene_data
                     .chunks
                     .size_y
-                    .mul_add(chunk_indices.1 as f64, scene_data.chunks.chunk_starts.y),
+                    .mul_add(<f64 as From<u32>>::from(chunk_indices.1), scene_data.chunks.chunk_starts.y),
                 self.time,
                 self.velocity,
                 C::to_u32(),
@@ -487,7 +487,7 @@ impl Ray {
                 scene_data
                     .chunks
                     .size_z
-                    .mul_add(chunk_indices.2 as f64, scene_data.chunks.chunk_starts.z),
+                    .mul_add(<f64 as From<u32>>::from(chunk_indices.2), scene_data.chunks.chunk_starts.z),
                 self.time,
                 self.velocity,
                 C::to_u32(),
@@ -527,14 +527,14 @@ fn init_chunk_traversal_data_dimension(
             delta_position: delta_direction,
             key_increment,
             time: ((chunk_start + chunk_width - origin_position) / chunk_width)
-                .mul_add(delta_time, start_time as f64),
+                .mul_add(delta_time, <f64 as From<u32>>::from(start_time)),
             delta_time,
             // truncate bound because it doesn't need to be that specific, & float rounding issues in the bound can lead to OOB issues
             // we'd rather have it be a bit too small (=> nothing changes) than a bit too large (=> we don't return out where we should)
             bound: maths::trunc_to_n_significant_digits(
                 <f64 as From<u32>>::from(num_chunks - chunk_index) * delta_direction,
                 6,
-            ) as f64,
+            ),
         }
     } else {
         let delta_direction = -chunk_width / direction_cosine;
@@ -544,14 +544,14 @@ fn init_chunk_traversal_data_dimension(
             delta_position: delta_direction,
             key_increment: -key_increment,
             time: ((origin_position - chunk_start) / chunk_width)
-                .mul_add(delta_time, start_time as f64),
+                .mul_add(delta_time, <f64 as From<u32>>::from(start_time)),
             delta_time,
             // truncate bound because it doesn't need to be that specific, & float rounding issues in the bound can lead to OOB issues
             // we'd rather have it be a bit too small (=> nothing changes) than a bit too large (=> we don't return out where we should)
             bound: maths::trunc_to_n_significant_digits(
                 <f64 as From<u32>>::from(chunk_index + 1) * delta_direction,
                 6,
-            ) as f64,
+            ),
         }
     }
 }

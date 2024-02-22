@@ -236,7 +236,7 @@ where
                 num::cast::<f64, T>(*val).unwrap_or_else(|| {
                     if !had_to_clip {
                         had_to_clip = true;
-                        println!("WARNING: Part of the resulting audio had to be clipped because it exceeded the file format's range. Please try a bigger scaling factor.")
+                        println!("WARNING: Part of the resulting audio had to be clipped because it exceeded the file format's range. Please try a bigger scaling factor.");
                     }
                     if *val > 0f64 {
                         T::max_value()
@@ -297,12 +297,12 @@ where
         if do_snapshot_method {
             let interp_scene = self.scene.at_time(time);
             let chunks = interp_scene.chunks::<C>();
-            interp_scene_data = SceneData {
+            interp_scene_data = Self {
                 scene: interp_scene,
                 chunks,
                 maximum_bounds: self.maximum_bounds,
             };
-            scene_data = &interp_scene_data
+            scene_data = &interp_scene_data;
         }
 
         let rt_results: Vec<(f64, u32)> = (0..number_of_rays)
