@@ -75,7 +75,7 @@ pub fn apply_to_sample<T: num::Num + num::NumCast + Clone + Copy>(
 ) -> Vec<f64> {
     let mut buffer = vec![0f64; impulse_response.len() + index + 1];
     for (idx, value) in impulse_response.iter().enumerate() {
-        buffer[idx] = num::cast::<T, f64>(sample).unwrap() * value * scaling_factor;
+        buffer[idx] = num::cast::<T, f64>(sample).unwrap_or(0f64) * value * scaling_factor;
     }
     buffer
 }

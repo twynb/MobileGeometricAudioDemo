@@ -1,6 +1,9 @@
 use std::{
     ops::Mul,
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc,
+    },
 };
 
 use generic_array::ArrayLength;
@@ -127,6 +130,7 @@ where
     /// Simulate the given number of rays in this `Scene` for each sample in the given input,
     /// then apply the impulse response.
     /// see `simulate_for_time_span_internal` for details
+    #[allow(clippy::too_many_arguments)]
     pub fn simulate_for_time_span(
         &self,
         input_data: &BitDepth,
@@ -135,7 +139,7 @@ where
         sample_rate: f64,
         scaling_factor: f64,
         do_snapshot_method: bool,
-        progress_counter: &Arc<Mutex<u32>>,
+        progress_counter: &Arc<AtomicU32>,
     ) -> BitDepth {
         match input_data {
             BitDepth::Eight(data) => BitDepth::Eight(self.simulate_for_time_span_internal(
@@ -185,6 +189,7 @@ where
     /// Simulate the scene's impulse response for each data point,
     /// then apply it to the relevant data point and collect the full result afterwards.
     /// Processing is done in chunks.
+    #[allow(clippy::too_many_arguments)]
     fn simulate_for_time_span_internal<T: Num + NumCast + Clone + Copy + Sync + Send + Bounded>(
         &self,
         data: &[T],
@@ -193,7 +198,7 @@ where
         sample_rate: f64,
         scaling_factor: f64,
         do_snapshot_method: bool,
-        progress_counter: &Arc<Mutex<u32>>,
+        progress_counter: &Arc<AtomicU32>,
     ) -> Vec<T> {
         let buffers: Vec<Vec<f64>> = data
             .iter()
@@ -203,12 +208,7 @@ where
             .par_chunks(1000)
             // .chunks(1000)
             .map(|chunk| {
-                {
-                    let cloned_counter = Arc::clone(progress_counter);
-                    let mut unlocked = cloned_counter.lock().unwrap();
-                    *unlocked += 1;
-                }
-                self.simulate_for_chunk(
+                let result = self.simulate_for_chunk(
                     data.len(),
                     chunk,
                     number_of_rays,
@@ -216,7 +216,12 @@ where
                     sample_rate,
                     scaling_factor,
                     do_snapshot_method,
-                )
+                );
+                {
+                    let cloned_counter = Arc::clone(progress_counter);
+                    cloned_counter.fetch_add(1, Ordering::AcqRel);
+                }
+                result
             })
             .collect();
         let max_len = buffers.iter().max_by_key(|vec| vec.len()).unwrap().len();
@@ -249,6 +254,7 @@ where
     }
 
     /// Internal logic for `simulate_for_time_span_internal`
+    #[allow(clippy::too_many_arguments)]
     fn simulate_for_chunk<T: Num + NumCast + Clone + Copy + Sync + Send>(
         &self,
         data_len: usize,

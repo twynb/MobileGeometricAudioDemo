@@ -1,10 +1,16 @@
 use std::{
-    sync::{Arc, Mutex}, thread::{self, sleep}, time::Instant
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc,
+    },
+    thread::{self, sleep, JoinHandle},
+    time::Instant,
 };
 
 use demo::{ray::DEFAULT_PROPAGATION_SPEED, scene::SceneData, scene_builder};
 
 const DEFAULT_NUMBER_OF_RAYS: u32 = 100000;
+const DEFAULT_SCALING_FACTOR: f64 = 10000f64;
 
 fn main() {
     // std::env::set_var("RUST_BACKTRACE", "1");
@@ -13,7 +19,7 @@ fn main() {
     let mut input_fname: Option<&str> = None;
     let mut scene_index: Option<u32> = None;
     let mut number_of_rays: u32 = DEFAULT_NUMBER_OF_RAYS;
-    let mut scaling_factor: f64 = DEFAULT_NUMBER_OF_RAYS as f64;
+    let mut scaling_factor: f64 = DEFAULT_SCALING_FACTOR;
     let mut do_snapshot_method: bool = false;
     let mut out_fname: &str = "result.wav";
 
@@ -25,12 +31,12 @@ fn main() {
             "--rays" => {
                 number_of_rays = arg_split[1]
                     .parse::<u32>()
-                    .unwrap_or_else(|_| panic!("\"--rays\" needs to be passed a number!"))
+                    .unwrap_or_else(|_| panic!("\"--rays\" needs to be passed a number!"));
             }
             "--scaling-factor" => {
                 scaling_factor = arg_split[1]
                     .parse::<f64>()
-                    .unwrap_or_else(|_| panic!("\"--rays\" needs to be passed a number!"))
+                    .unwrap_or_else(|_| panic!("\"--rays\" needs to be passed a number!"));
             }
             "--snapshot-method" => do_snapshot_method = true,
             "--outfile" => out_fname = arg_split[1],
@@ -79,8 +85,8 @@ fn main() {
     println!("Selected scene #{scene_index}: \"{scene_name}\".");
     let scene_data = SceneData::<typenum::U10>::create_for_scene(scene);
 
-    let progress_counter = Arc::new(Mutex::new(0));
-    spawn_progress_counter_thread(input_sound_len, &progress_counter);
+    let progress_counter = Arc::new(AtomicU32::new(0));
+    let progress_counter_thread = spawn_progress_counter_thread(input_sound_len, &progress_counter);
 
     println!("Calculating and applying {input_sound_len} impulse responses with {number_of_rays} rays each, this will take a loooong while...");
     let time_start = Instant::now();
@@ -88,14 +94,15 @@ fn main() {
         &input_data,
         number_of_rays,
         DEFAULT_PROPAGATION_SPEED,
-        header.sampling_rate as f64,
+        f64::from(header.sampling_rate),
         1f64 / scaling_factor,
         do_snapshot_method,
         &progress_counter,
     );
     let elapsed = time_start.elapsed().as_secs();
+    let _ = progress_counter_thread.join(); // we don't really care if this somehow fails
     println!(
-        "Finished calculation in {}:{}:{}",
+        "Finished calculation in {}:{:02}:{:02}",
         elapsed / 3600,
         (elapsed % 3600) / 60,
         elapsed % 60
@@ -115,21 +122,19 @@ fn print_supported_scenes() {
     println!("\t3 - Approaching Receiver 4s");
 }
 
-fn spawn_progress_counter_thread(input_sound_len: usize, progress_counter: &Arc<Mutex<u32>>) {
+/// Spawn a thread that repeatedly checks the progress counter and displays progress.
+fn spawn_progress_counter_thread(input_sound_len: usize, progress_counter: &Arc<AtomicU32>) -> JoinHandle<()> {
     let number_of_chunks = (input_sound_len / 1000) as u32 + u32::from(input_sound_len % 1000 != 0);
     let cloned_counter = Arc::clone(progress_counter);
-    thread::spawn(move || {
-        loop {
-            let current_value = {
-                let value = cloned_counter.lock().unwrap();
-                *value
-            };
-            print!("\r{current_value}/{number_of_chunks}");
-            if current_value >= number_of_chunks {
-                println!();
-                break;
-            }
-            sleep(std::time::Duration::from_millis(100))
+    thread::spawn(move || loop {
+        let current_value = {
+            cloned_counter.load(Ordering::Relaxed)
+        };
+        print!("\rFinished {current_value}/{number_of_chunks} Batches");
+        if current_value >= number_of_chunks {
+            println!();
+            break;
         }
-    });
+        sleep(std::time::Duration::from_millis(100));
+    })
 }
