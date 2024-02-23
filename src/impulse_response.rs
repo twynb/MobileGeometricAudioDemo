@@ -80,6 +80,24 @@ pub fn apply_to_sample<T: num::Num + num::NumCast + Clone + Copy>(
     buffer
 }
 
+/// Apply a single impulse response to several data points from a looping scene.
+/// This assumes the samples are sorted by index.
+pub fn apply_looped_to_many_samples<T: num::Num + num::NumCast + Clone + Copy>(
+    impulse_response: &[f64],
+    samples: &[(usize, T)],
+    scaling_factor: f64,
+    loop_duration: usize,
+) -> Vec<f64> {
+    let mut buffer =
+        vec![0f64; impulse_response.len() + samples.last().unwrap_or(&(0, T::zero())).0 + 1];
+    for (idx, value) in impulse_response.iter().enumerate() {
+        for (sample_num, sample) in samples.iter().enumerate() {
+            buffer[idx + sample_num * loop_duration] += num::cast::<T, f64>(sample.1).unwrap_or(0f64) * value * scaling_factor;
+        }
+    }
+    buffer
+}
+
 #[cfg(test)]
 mod tests {
     use super::to_impulse_response;

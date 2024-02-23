@@ -25,6 +25,7 @@ fn directly_hitting_receiver() {
         )],
         receiver: Receiver::Interpolated(Vector3::new(20f64, 0f64, 0f64), 0.1f64, 0),
         emitter: Emitter::Interpolated(Vector3::new(0f64, 0f64, 0f64), 0, EmissionType::Random),
+        loop_duration: None,
     };
     let chunks = scene.chunks::<typenum::U10>();
     let maximum_bounds = scene.maximum_bounds();
@@ -64,6 +65,7 @@ fn hitting_receiver_after_one_bounce() {
         )],
         receiver: Receiver::Interpolated(Vector3::new(20f64, 0f64, 0f64), 0.1f64, 0),
         emitter: Emitter::Interpolated(Vector3::new(0f64, 0f64, 0f64), 0, EmissionType::Random),
+        loop_duration: None,
     };
     let chunks = scene.chunks::<typenum::U10>();
     let maximum_bounds = scene.maximum_bounds();
@@ -96,6 +98,7 @@ fn unreachable_receiver() {
         ),
         receiver: Receiver::Interpolated(Vector3::new(20f64, 0f64, 0f64), 0.1f64, 0),
         emitter: Emitter::Interpolated(Vector3::new(0f64, 0f64, 0f64), 0, EmissionType::Random),
+        loop_duration: None,
     };
     let chunks = scene.chunks::<typenum::U10>();
     let maximum_bounds = scene.maximum_bounds();
@@ -135,6 +138,7 @@ fn hitting_receiver_before_and_after_one_bounce() {
         )],
         receiver: Receiver::Interpolated(Vector3::new(20f64, 0f64, 0f64), 0.1f64, 0),
         emitter: Emitter::Interpolated(Vector3::new(0f64, 0f64, 0f64), 0, EmissionType::Random),
+        loop_duration: None,
     };
     let chunks = scene.chunks::<typenum::U10>();
     let maximum_bounds = scene.maximum_bounds();

@@ -144,6 +144,7 @@ mod tests {
                 }],
                 EmissionType::Random,
             ),
+            loop_duration: None,
         }
     }
 
@@ -189,6 +190,7 @@ mod tests {
                 ],
                 EmissionType::Random,
             ),
+            loop_duration: None,
         };
 
         assert_eq!(
@@ -268,16 +270,20 @@ mod tests {
                     MATERIAL_CONCRETE_WALL,
                 ),
             ],
-            emitter: Emitter::Keyframes(vec![
-                CoordinateKeyframe {
-                    time: 0,
-                    coords: Vector3::new(0f64, 0f64, 0f64),
-                },
-                CoordinateKeyframe {
-                    time: 3,
-                    coords: Vector3::new(-10f64, -20f64, -50f64),
-                },
-            ], EmissionType::Random),
+            emitter: Emitter::Keyframes(
+                vec![
+                    CoordinateKeyframe {
+                        time: 0,
+                        coords: Vector3::new(0f64, 0f64, 0f64),
+                    },
+                    CoordinateKeyframe {
+                        time: 3,
+                        coords: Vector3::new(-10f64, -20f64, -50f64),
+                    },
+                ],
+                EmissionType::Random,
+            ),
+            loop_duration: None,
         };
 
         assert_eq!(

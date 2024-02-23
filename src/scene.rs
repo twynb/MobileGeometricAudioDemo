@@ -7,6 +7,7 @@ use std::{
 };
 
 use generic_array::ArrayLength;
+use itertools::Itertools;
 use nalgebra::Vector3;
 use num::{Bounded, Num, NumCast};
 use rayon::prelude::*;
@@ -89,6 +90,7 @@ pub struct Scene {
     pub surfaces: Vec<Surface<3>>, // for now we only work with triangles
     pub receiver: Receiver,
     pub emitter: Emitter,
+    pub loop_duration: Option<u32>,
 }
 
 /// General data about a scene, required to bounce a ray through.
@@ -189,7 +191,7 @@ where
     /// Simulate the scene's impulse response for each data point,
     /// then apply it to the relevant data point and collect the full result afterwards.
     /// Processing is done in chunks.
-    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments, clippy::option_if_let_else)]
     fn simulate_for_time_span_internal<T: Num + NumCast + Clone + Copy + Sync + Send + Bounded>(
         &self,
         data: &[T],
@@ -200,30 +202,27 @@ where
         do_snapshot_method: bool,
         progress_counter: &Arc<AtomicU32>,
     ) -> Vec<T> {
-        let buffers: Vec<Vec<f64>> = data
-            .iter()
-            .enumerate()
-            .map(|(idx, val)| (idx, *val))
-            .collect::<Vec<(usize, T)>>()
-            .par_chunks(1000)
-            // .chunks(1000)
-            .map(|chunk| {
-                let result = self.simulate_for_chunk(
-                    data.len(),
-                    chunk,
-                    number_of_rays,
-                    velocity,
-                    sample_rate,
-                    scaling_factor,
-                    do_snapshot_method,
-                );
-                {
-                    let cloned_counter = Arc::clone(progress_counter);
-                    cloned_counter.fetch_add(1, Ordering::AcqRel);
-                }
-                result
-            })
-            .collect();
+        let buffers: Vec<Vec<f64>> = match self.scene.loop_duration {
+            Some(duration) => self.simulate_for_time_span_looping(
+                data,
+                number_of_rays,
+                velocity,
+                sample_rate,
+                scaling_factor,
+                do_snapshot_method,
+                progress_counter,
+                duration,
+            ),
+            None => self.simulate_for_time_span_non_looping(
+                data,
+                number_of_rays,
+                velocity,
+                sample_rate,
+                scaling_factor,
+                do_snapshot_method,
+                progress_counter,
+            ),
+        };
         let max_len = buffers.iter().max_by_key(|vec| vec.len()).unwrap().len();
         let mut buffer = vec![0f64; max_len];
         for buffer_to_add in &buffers {
@@ -253,6 +252,85 @@ where
             .collect()
     }
 
+    #[allow(clippy::too_many_arguments)]
+    fn simulate_for_time_span_non_looping<
+        T: Num + NumCast + Bounded + Copy + Clone + Sync + Send,
+    >(
+        &self,
+        data: &[T],
+        number_of_rays: u32,
+        velocity: f64,
+        sample_rate: f64,
+        scaling_factor: f64,
+        do_snapshot_method: bool,
+        progress_counter: &Arc<AtomicU32>,
+    ) -> Vec<Vec<f64>> {
+        data.iter()
+            .enumerate()
+            .map(|(idx, val)| (idx, *val))
+            .collect::<Vec<(usize, T)>>()
+            .par_chunks(1000)
+            // .chunks(1000)
+            .map(|chunk| {
+                let result = self.simulate_for_chunk(
+                    data.len(),
+                    chunk,
+                    number_of_rays,
+                    velocity,
+                    sample_rate,
+                    scaling_factor,
+                    do_snapshot_method,
+                );
+                {
+                    let cloned_counter = Arc::clone(progress_counter);
+                    cloned_counter.fetch_add(1, Ordering::AcqRel);
+                }
+                result
+            })
+            .collect()
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn simulate_for_time_span_looping<T: Num + NumCast + Bounded + Copy + Clone + Sync + Send>(
+        &self,
+        data: &[T],
+        number_of_rays: u32,
+        velocity: f64,
+        sample_rate: f64,
+        scaling_factor: f64,
+        do_snapshot_method: bool,
+        progress_counter: &Arc<AtomicU32>,
+        loop_duration: u32,
+    ) -> Vec<Vec<f64>> {
+        data.iter()
+            .enumerate()
+            .map(|(idx, val)| (idx, *val))
+            .group_by(|(idx, _val)| *idx as u32 % loop_duration)
+            .into_iter()
+            .map(|(loop_idx, group)| (loop_idx, group.collect()))
+            .collect::<Vec<(u32, Vec<(usize, T)>)>>()
+            .par_chunks(1000)
+            // .chunks(1000)
+            .map(|chunk| {
+                let result = self.simulate_looping_for_chunk(
+                    data.len(),
+                    chunk,
+                    number_of_rays,
+                    velocity,
+                    sample_rate,
+                    scaling_factor,
+                    do_snapshot_method,
+                    loop_duration
+                );
+                {
+                    let cloned_counter = Arc::clone(progress_counter);
+                    cloned_counter.fetch_add(1, Ordering::AcqRel);
+                }
+                result
+            })
+            .collect()
+    }
+
     /// Internal logic for `simulate_for_time_span_internal`
     #[allow(clippy::too_many_arguments)]
     fn simulate_for_chunk<T: Num + NumCast + Clone + Copy + Sync + Send>(
@@ -276,6 +354,41 @@ where
             );
             let buffer_to_add =
                 impulse_response::apply_to_sample(&impulse_response, *value, *idx, scaling_factor);
+            if buffer.len() < buffer_to_add.len() {
+                buffer.resize(buffer_to_add.len(), 0f64);
+            }
+            buffer
+                .iter_mut()
+                .zip(&buffer_to_add)
+                .for_each(|(val, to_add)| *val += *to_add);
+        }
+        buffer
+    }
+
+    /// Internal logic for `simulate_for_time_span_internal_looping`
+    #[allow(clippy::too_many_arguments)]
+    fn simulate_looping_for_chunk<T: Num + NumCast + Clone + Copy + Sync + Send>(
+        &self,
+        data_len: usize,
+        chunk: &[(u32, Vec<(usize, T)>)],
+        number_of_rays: u32,
+        velocity: f64,
+        sample_rate: f64,
+        scaling_factor: f64,
+        do_snapshot_method: bool,
+        loop_duration: u32
+    ) -> Vec<f64> {
+        let mut buffer: Vec<f64> = vec![0f64; data_len];
+        for (idx, value) in chunk {
+            let impulse_response = self.simulate_at_time(
+                *idx,
+                number_of_rays,
+                velocity,
+                sample_rate,
+                do_snapshot_method,
+            );
+            let buffer_to_add =
+                impulse_response::apply_looped_to_many_samples(&impulse_response, value, scaling_factor, loop_duration as usize);
             if buffer.len() < buffer_to_add.len() {
                 buffer.resize(buffer_to_add.len(), 0f64);
             }

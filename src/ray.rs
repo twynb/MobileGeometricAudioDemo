@@ -344,7 +344,7 @@ impl Ray {
         }
         let (receivers, surfaces) = scene_data
             .chunks
-            .objects_at_key_and_time(key, time_entry, time_exit);
+            .objects_at_key_and_time(key, time_entry, time_exit, scene_data.scene.loop_duration);
 
         let result = if allow_receiver {
             self.intersection_check_receiver_in_chunk(&receivers, scene_data, time_entry, time_exit)
@@ -380,6 +380,7 @@ impl Ray {
             &scene_data.scene.receiver,
             time_entry,
             time_exit,
+            scene_data.scene.loop_duration
         ) {
             return IntersectionCheckResult::Found(true, 0, time, coords);
         }
@@ -417,6 +418,7 @@ impl Ray {
                 &scene_data.scene.surfaces[*surface_index],
                 time_entry,
                 time_exit,
+                scene_data.scene.loop_duration
             ) else {
                 // skip surfaces we don't intersect with
                 continue;

@@ -266,6 +266,7 @@ impl<const N: usize> Interpolation for Surface<N> {
 
 impl Interpolation for Scene {
     fn at_time(&self, time: u32) -> Self {
+        let time = self.loop_duration.map_or(time, |duration| time % duration);
         let surfaces = self
             .surfaces
             .iter()
@@ -277,6 +278,7 @@ impl Interpolation for Scene {
             surfaces,
             receiver,
             emitter,
+            loop_duration: self.loop_duration,
         }
     }
 }

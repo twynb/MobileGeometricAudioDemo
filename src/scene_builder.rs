@@ -146,6 +146,7 @@ pub struct SceneBuilder {
     emitter_coords: Option<Vector3<f64>>,
     emitter_keyframes: Option<Vec<CoordinateKeyframe>>,
     emission_type: EmissionType,
+    loop_duration: Option<u32>
 }
 
 impl SceneBuilder {
@@ -231,6 +232,18 @@ impl SceneBuilder {
         self
     }
 
+    /// Set the scene to not loop.
+    pub const fn non_looping(mut self) -> Self {
+        self.loop_duration = None;
+        self
+    }
+
+    /// Set the scene to loop with the specified duration.
+    pub const fn looping(mut self, duration: u32) -> Self {
+        self.loop_duration = Some(duration);
+        self
+    }
+
     /// Build the `Scene` described by the data passed into this `SceneBuilder`.
     ///
     /// # Panics
@@ -271,6 +284,7 @@ impl SceneBuilder {
             surfaces,
             receiver,
             emitter,
+            loop_duration: self.loop_duration
         }
     }
 }
@@ -285,6 +299,7 @@ impl Default for SceneBuilder {
             emitter_coords: Some(Vector3::new(0f64, 0f64, 0f64)),
             emitter_keyframes: None,
             emission_type: EmissionType::Random,
+            loop_duration: None,
         }
     }
 }

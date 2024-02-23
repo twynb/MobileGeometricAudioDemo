@@ -27,6 +27,16 @@ pub enum TimedChunkEntry {
     Final(usize, u32),
 }
 
+impl TimedChunkEntry {
+    const fn object_index(&self) -> usize {
+        match self {
+            Self::Dynamic(index, _entry, _exit) => *index,
+            Self::Static(index) => *index,
+            Self::Final(index, _entry) => *index,
+        }
+    }
+}
+
 /// A chunk within the scene. Chunks hold a vector of `TimedChunkEntry` entries for
 /// surfaces and receivers that are inside the chunk at some point in the scene.
 #[derive(Clone, Debug)]
@@ -41,19 +51,68 @@ impl SceneChunk {
     ///
     /// For the receivers (the first vector), the index doesn't mean anything as of current
     /// as there can only be one receiver.
-    fn objects_at_time(&self, time_entry: u32, time_exit: u32) -> (Vec<usize>, Vec<usize>) {
-        (
-            self.receivers
-                .iter()
-                .filter_map(|entry| filter_map_entry_within_time(entry, time_entry, time_exit))
-                .unique()
-                .collect(),
-            self.surfaces
-                .iter()
-                .filter_map(|entry| filter_map_entry_within_time(entry, time_entry, time_exit))
-                .unique()
-                .collect(),
-        )
+    fn objects_at_time(
+        &self,
+        time_entry: u32,
+        time_exit: u32,
+        loop_duration: Option<u32>,
+    ) -> (Vec<usize>, Vec<usize>) {
+        let (loop_entry, loop_exit, time_entry, time_exit) =
+            loop_duration.map_or((0, 0, time_entry, time_exit), |duration| {
+                (
+                    time_entry / duration,
+                    time_exit / duration,
+                    time_entry % duration,
+                    time_exit % duration,
+                )
+            });
+        let duration = loop_duration.unwrap_or(1); // only relevant for cases where duration is definitely Some
+        if loop_entry == loop_exit {
+            // everything takes place in the same loop iteration or we don't loop at all
+            (
+                self.receivers
+                    .iter()
+                    .filter_map(|entry| filter_map_entry_within_time(entry, time_entry, time_exit))
+                    .unique()
+                    .collect(),
+                self.surfaces
+                    .iter()
+                    .filter_map(|entry| filter_map_entry_within_time(entry, time_entry, time_exit))
+                    .unique()
+                    .collect(),
+            )
+        } else if loop_exit - loop_entry >= 2 || loop_exit % duration > loop_entry % duration {
+            // if we run through the full loop all in one go, just return every object we have
+            (
+                self.receivers
+                    .iter()
+                    .map(TimedChunkEntry::object_index)
+                    .unique()
+                    .collect(),
+                self.surfaces
+                    .iter()
+                    .map(TimedChunkEntry::object_index)
+                    .unique()
+                    .collect(),
+            )
+        } else {
+            (
+                self.receivers
+                    .iter()
+                    .filter_map(|entry| {
+                        filter_map_entry_within_time_with_loop(entry, time_entry, time_exit)
+                    })
+                    .unique()
+                    .collect(),
+                self.surfaces
+                    .iter()
+                    .filter_map(|entry| {
+                        filter_map_entry_within_time_with_loop(entry, time_entry, time_exit)
+                    })
+                    .unique()
+                    .collect(),
+            )
+        }
     }
 }
 
@@ -84,6 +143,37 @@ const fn filter_map_entry_within_time(
     }
 }
 
+/// Filter whether the given entry is within the given
+/// time frame, and return either its index or None
+/// accordingly.
+/// This is meant specifically for a case where `time_exit` takes place one loop after `time_entry`
+/// and `time_exit` occurs earlier in the loop than `time_entry`.
+/// In this case, we only need to check if one of these conditions applies:
+/// a. the object has entered the chunk between 0 and `time_exit` (=> it shows up in the new loop)
+/// b. the object hasn't exited the chunk between 0 and `time_entry` (=> it shows up in the old loop)
+const fn filter_map_entry_within_time_with_loop(
+    entry: &TimedChunkEntry,
+    time_entry: u32,
+    time_exit: u32,
+) -> Option<usize> {
+    match entry {
+        TimedChunkEntry::Static(index) => Some(*index),
+        TimedChunkEntry::Final(index, entry) => {
+            if *entry <= time_entry {
+                Some(*index)
+            } else {
+                None
+            }
+        }
+        TimedChunkEntry::Dynamic(index, entry, exit) => {
+            if *entry <= time_exit || *exit >= time_entry {
+                Some(*index)
+            } else {
+                None
+            }
+        }
+    }
+}
 impl PartialEq for SceneChunk {
     fn eq(&self, other: &Self) -> bool {
         test_utils::unordered_eq_without_duplicates(&self.surfaces, &other.surfaces)
@@ -363,10 +453,11 @@ where
         key: u32,
         time_entry: u32,
         time_exit: u32,
+        loop_duration: Option<u32>,
     ) -> (Vec<usize>, Vec<usize>) {
         self.chunks.get(&key).map_or_else(
             || (vec![], vec![]),
-            |chunk| chunk.objects_at_time(time_entry, time_exit),
+            |chunk| chunk.objects_at_time(time_entry, time_exit, loop_duration),
         )
     }
 }
@@ -419,9 +510,9 @@ impl Scene {
         };
 
         for (index, surface) in self.surfaces.iter().enumerate() {
-            add_surface_to_chunks(surface, &mut result, index);
+            add_surface_to_chunks(surface, &mut result, index, self);
         }
-        add_receiver_to_chunks(&self.receiver, &mut result);
+        add_receiver_to_chunks(&self.receiver, &mut result, self);
 
         result
     }
@@ -462,6 +553,7 @@ fn add_surface_to_chunks<const N: usize, C>(
     surface: &Surface<N>,
     chunks: &mut Chunks<C>,
     index: usize,
+    scene: &Scene,
 ) where
     C: Unsigned + Mul<C>,
     <C as Mul>::Output: Mul<C>,
@@ -485,11 +577,13 @@ fn add_surface_to_chunks<const N: usize, C>(
                 add_surface_keyframe_pair_to_chunks(pair[0], &pair[1], chunks, index);
             });
             let last_keyframe = keyframes.last().unwrap();
+            // when looping, the last keyframe counts until the end of the scene. Otherwise, it's a final keyframe
+            let last_time = scene.loop_duration;
             add_coordinate_slice_to_chunks(
                 &last_keyframe.coords,
                 index,
                 chunks,
-                Some((last_keyframe.time, None)),
+                Some((last_keyframe.time, last_time)),
             );
         }
     }
@@ -502,7 +596,7 @@ fn add_surface_to_chunks<const N: usize, C>(
 ///
 /// For keyframe receivers, this will iterate over each pair of keyframes and add them to the according
 /// chunks following the logic from `add_keyframe_pair_to_chunks`.
-fn add_receiver_to_chunks<C>(receiver: &Receiver, chunks: &mut Chunks<C>)
+fn add_receiver_to_chunks<C>(receiver: &Receiver, chunks: &mut Chunks<C>, scene: &Scene)
 where
     C: Unsigned + Mul<C>,
     <C as Mul>::Output: Mul<C>,
@@ -527,12 +621,14 @@ where
                 add_sphere_keyframe_pair_to_chunks(pair[0], &pair[1], *radius, chunks, 0);
             });
             let last_keyframe = keyframes.last().unwrap();
+            // when looping, the last keyframe counts until the end of the scene. Otherwise, it's a final keyframe
+            let last_time = scene.loop_duration;
             add_sphere_to_chunks(
                 &last_keyframe.coords,
                 *radius,
                 0,
                 chunks,
-                Some((last_keyframe.time, None)),
+                Some((last_keyframe.time, last_time)),
             );
         }
     }

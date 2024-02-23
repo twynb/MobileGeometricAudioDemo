@@ -14,44 +14,108 @@ use crate::{
 /// respectively.
 /// For interpolated surfaces, only one check is required because they don't change. For keyframe
 /// surfaces, a check between every set of keyframes relevant to the entry/exit time is done.
+#[allow(clippy::option_if_let_else)]
 pub fn intersect_ray_and_surface(
     ray: &Ray,
     surface: &Surface<3>,
     time_entry: u32,
     time_exit: u32,
+    scene_looping_duration: Option<u32>,
 ) -> Option<(u32, Vector3<f64>)> {
     match surface {
         Surface::Interpolated(coords, _time, _material) => {
             intersection_check_surface_coordinates(ray, coords, time_entry, time_exit)
         }
-        Surface::Keyframes(keyframes, _material) => {
-            for pair in keyframes.windows(2) {
-                if pair[1].time < time_entry {
-                    continue;
-                }
-                if pair[0].time > time_exit {
-                    return None;
-                }
-                if let Some((time, coords)) = intersection_check_surface_keyframes(
-                    ray,
-                    &pair[0],
-                    &pair[1],
-                    std::cmp::max(time_entry, pair[0].time),
-                    std::cmp::min(time_exit, pair[1].time),
-                ) {
-                    return Some((time, coords));
-                }
-            }
-            // do final check after last keyframe
-            let final_keyframe = &keyframes[keyframes.len() - 1];
-            intersection_check_surface_coordinates(
+        Surface::Keyframes(keyframes, _material) => match scene_looping_duration {
+            Some(loop_duration) => intersection_check_surface_looping(
                 ray,
-                &final_keyframe.coords,
-                final_keyframe.time,
+                keyframes,
+                time_entry,
                 time_exit,
-            )
+                loop_duration,
+            ),
+            None => intersection_check_surface_non_looping(ray, keyframes, time_entry, time_exit),
+        },
+    }
+}
+
+fn intersection_check_surface_non_looping(
+    ray: &Ray,
+    keyframes: &[SurfaceKeyframe<3>],
+    time_entry: u32,
+    time_exit: u32,
+) -> Option<(u32, Vector3<f64>)> {
+    for pair in keyframes.windows(2) {
+        if pair[1].time < time_entry {
+            continue;
+        }
+        if pair[0].time > time_exit {
+            return None;
+        }
+        if let Some((time, coords)) = intersection_check_surface_keyframes(
+            ray,
+            &pair[0],
+            &pair[1],
+            std::cmp::max(time_entry, pair[0].time),
+            std::cmp::min(time_exit, pair[1].time),
+            None,
+        ) {
+            return Some((time, coords));
         }
     }
+    // do final check after last keyframe
+    let final_keyframe = &keyframes[keyframes.len() - 1];
+    intersection_check_surface_coordinates(
+        ray,
+        &final_keyframe.coords,
+        final_keyframe.time,
+        time_exit,
+    )
+}
+
+fn intersection_check_surface_looping(
+    ray: &Ray,
+    keyframes: &[SurfaceKeyframe<3>],
+    time_entry: u32,
+    time_exit: u32,
+    loop_duration: u32,
+) -> Option<(u32, Vector3<f64>)> {
+    // round start time to last looping time
+    let mut current_time = time_entry - (time_entry % loop_duration);
+    while current_time <= time_exit {
+        for pair in keyframes.windows(2) {
+            if current_time + pair[1].time < time_entry {
+                continue;
+            }
+            if current_time + pair[0].time > time_exit {
+                return None;
+            }
+            if let Some((time, coords)) = intersection_check_surface_keyframes(
+                ray,
+                &pair[0],
+                &pair[1],
+                std::cmp::max(time_entry % loop_duration, pair[0].time),
+                std::cmp::min(time_exit % loop_duration, pair[1].time),
+                Some(loop_duration),
+            ) {
+                return Some((time + current_time, coords));
+            }
+        }
+        // do final check for loop after last keyframe
+        let final_keyframe = &keyframes[keyframes.len() - 1];
+        if final_keyframe.time < loop_duration {
+            if let Some((time, coords)) = intersection_check_surface_coordinates(
+                ray,
+                &final_keyframe.coords,
+                current_time + final_keyframe.time,
+                current_time + loop_duration,
+            ) {
+                return Some((time, coords));
+            }
+        }
+        current_time += loop_duration;
+    }
+    None
 }
 
 /// Check for an intersection inbetween the two given keyframes.
@@ -63,8 +127,10 @@ fn intersection_check_surface_keyframes(
     keyframe_second: &SurfaceKeyframe<3>,
     time_entry: u32,
     time_exit: u32,
+    loop_duration: Option<u32>,
 ) -> Option<(u32, Vector3<f64>)> {
-    let (d3, d2, d1, d0) = surface_polynomial_parameters(ray, keyframe_first, keyframe_second);
+    let (d3, d2, d1, d0) =
+        surface_polynomial_parameters(ray, keyframe_first, keyframe_second, loop_duration);
 
     let intersections = roots::find_roots_cubic(d3, d2, d1, d0);
     let mut intersection: Option<(u32, Vector3<f64>)> = None;
@@ -102,9 +168,10 @@ fn surface_polynomial_parameters(
     ray: &Ray,
     keyframe_first: &SurfaceKeyframe<3>,
     keyframe_second: &SurfaceKeyframe<3>,
+    loop_duration: Option<u32>,
 ) -> (f64, f64, f64, f64) {
     let (g2, g1, g0) = surface_cross_product_parameters(keyframe_first, keyframe_second);
-    let ray_time = f64::from(ray.time); // t_0
+    let ray_time = f64::from(loop_duration.map_or(ray.time, |duration| ray.time % duration)); // t_0
     let velocity = ray.velocity * ray.direction.into_inner();
     let delta_time = f64::from(keyframe_second.time - keyframe_first.time);
     let delta_point_1 = keyframe_second.coords[0] - keyframe_first.coords[0];
@@ -261,46 +328,112 @@ fn intersection_check_surface_coordinates(
 /// respectively.
 /// For interpolated receivers, only one check is required because they don't change. For keyframe
 /// receivers, a check between every set of keyframes relevant to the entry/exit time is done.
+#[allow(clippy::option_if_let_else)]
 pub fn intersect_ray_and_receiver(
     ray: &Ray,
     receiver: &Receiver,
     time_entry: u32,
     time_exit: u32,
+    loop_duration: Option<u32>,
 ) -> Option<(u32, Vector3<f64>)> {
     match receiver {
         Receiver::Interpolated(coords, radius, _time) => {
             intersection_check_receiver_coordinates(ray, coords, *radius, time_entry, time_exit)
         }
-        Receiver::Keyframes(keyframes, radius) => {
-            for pair in keyframes.windows(2) {
-                if pair[1].time < time_entry {
-                    continue;
-                }
-                if pair[0].time > time_exit {
-                    return None;
-                }
-                if let Some((time, coords)) = intersection_check_receiver_keyframes(
-                    ray,
-                    &pair[0],
-                    &pair[1],
-                    *radius,
-                    std::cmp::max(time_entry, pair[0].time),
-                    std::cmp::min(time_exit, pair[1].time),
-                ) {
-                    return Some((time, coords));
-                }
-            }
-            // do final check after last keyframe
-            let final_keyframe = &keyframes[keyframes.len() - 1];
-            intersection_check_receiver_coordinates(
-                ray,
-                &final_keyframe.coords,
-                *radius,
-                final_keyframe.time,
-                time_exit,
-            )
+        Receiver::Keyframes(keyframes, radius) => match loop_duration {
+            Some(loop_time) => intersection_check_receiver_looping(
+                ray, keyframes, time_entry, time_exit, *radius, loop_time,
+            ),
+            None => intersection_check_receiver_non_looping(
+                ray, keyframes, time_entry, time_exit, *radius,
+            ),
+        },
+    }
+}
+
+fn intersection_check_receiver_non_looping(
+    ray: &Ray,
+    keyframes: &[CoordinateKeyframe],
+    time_entry: u32,
+    time_exit: u32,
+    radius: f64,
+) -> Option<(u32, Vector3<f64>)> {
+    for pair in keyframes.windows(2) {
+        if pair[1].time < time_entry {
+            continue;
+        }
+        if pair[0].time > time_exit {
+            return None;
+        }
+        if let Some((time, coords)) = intersection_check_receiver_keyframes(
+            ray,
+            &pair[0],
+            &pair[1],
+            radius,
+            std::cmp::max(time_entry, pair[0].time),
+            std::cmp::min(time_exit, pair[1].time),
+            None,
+        ) {
+            return Some((time, coords));
         }
     }
+    // do final check after last keyframe
+    let final_keyframe = &keyframes[keyframes.len() - 1];
+    intersection_check_receiver_coordinates(
+        ray,
+        &final_keyframe.coords,
+        radius,
+        final_keyframe.time,
+        time_exit,
+    )
+}
+
+fn intersection_check_receiver_looping(
+    ray: &Ray,
+    keyframes: &[CoordinateKeyframe],
+    time_entry: u32,
+    time_exit: u32,
+    radius: f64,
+    loop_duration: u32,
+) -> Option<(u32, Vector3<f64>)> {
+    let mut current_time = time_entry - (time_entry % loop_duration);
+
+    while current_time <= time_exit {
+        for pair in keyframes.windows(2) {
+            if current_time + pair[1].time < time_entry {
+                continue;
+            }
+            if current_time + pair[0].time > time_exit {
+                return None;
+            }
+            if let Some((time, coords)) = intersection_check_receiver_keyframes(
+                ray,
+                &pair[0],
+                &pair[1],
+                radius,
+                std::cmp::max(time_entry % loop_duration, pair[0].time),
+                std::cmp::min(time_exit % loop_duration, pair[1].time),
+                Some(loop_duration),
+            ) {
+                return Some((current_time + time, coords));
+            }
+        }
+        // do final check after last keyframe
+        let final_keyframe = &keyframes[keyframes.len() - 1];
+        if final_keyframe.time < loop_duration {
+            if let Some((time, coords)) = intersection_check_receiver_coordinates(
+                ray,
+                &final_keyframe.coords,
+                radius,
+                current_time + final_keyframe.time,
+                current_time + loop_duration,
+            ) {
+                return Some((time, coords));
+            }
+        }
+        current_time += loop_duration;
+    }
+    None
 }
 
 /// Check for an intersection inbetween the two given keyframes.
@@ -313,8 +446,10 @@ fn intersection_check_receiver_keyframes(
     radius: f64,
     time_entry: u32,
     time_exit: u32,
+    loop_duration: Option<u32>,
 ) -> Option<(u32, Vector3<f64>)> {
-    let (d2, d1, d0) = receiver_polynomial_parameters(ray, keyframe_first, keyframe_second, radius);
+    let (d2, d1, d0) =
+        receiver_polynomial_parameters(ray, keyframe_first, keyframe_second, radius, loop_duration);
     let intersections = roots::find_roots_quadratic(d2, d1, d0);
     let mut intersection: Option<f64> = None;
     for intersection_time in intersections.as_ref() {
@@ -343,9 +478,10 @@ fn receiver_polynomial_parameters(
     keyframe_first: &CoordinateKeyframe,
     keyframe_second: &CoordinateKeyframe,
     radius: f64,
+    loop_duration: Option<u32>,
 ) -> (f64, f64, f64) {
     let p_minus_ck2 = ray.origin - keyframe_second.coords;
-    let ray_time = f64::from(ray.time);
+    let ray_time = f64::from(loop_duration.map_or(ray.time, |duration| ray.time % duration));
     let velocity = ray.velocity * ray.direction.into_inner();
     let delta_time = f64::from(keyframe_second.time - keyframe_first.time);
     let delta_time_squared = delta_time.powi(2);
