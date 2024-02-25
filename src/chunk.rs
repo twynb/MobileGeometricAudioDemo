@@ -66,7 +66,6 @@ impl SceneChunk {
                     time_exit % duration,
                 )
             });
-        let duration = loop_duration.unwrap_or(1); // only relevant for cases where duration is definitely Some
         if loop_entry == loop_exit {
             // everything takes place in the same loop iteration or we don't loop at all
             (
@@ -81,7 +80,7 @@ impl SceneChunk {
                     .unique()
                     .collect(),
             )
-        } else if loop_exit - loop_entry >= 2 || loop_exit % duration > loop_entry % duration {
+        } else if loop_exit - loop_entry >= 2 || time_exit >= time_entry {
             // if we run through the full loop all in one go, just return every object we have
             (
                 self.receivers
@@ -158,15 +157,15 @@ const fn filter_map_entry_within_time_with_loop(
 ) -> Option<usize> {
     match entry {
         TimedChunkEntry::Static(index) => Some(*index),
-        TimedChunkEntry::Final(index, entry) => {
-            if *entry <= time_entry {
+        TimedChunkEntry::Final(index, time_object_entry) => {
+            if *time_object_entry <= time_entry {
                 Some(*index)
             } else {
                 None
             }
         }
-        TimedChunkEntry::Dynamic(index, entry, exit) => {
-            if *entry <= time_exit || *exit >= time_entry {
+        TimedChunkEntry::Dynamic(index, time_object_entry, time_object_exit) => {
+            if *time_object_entry <= time_exit || *time_object_exit >= time_entry {
                 Some(*index)
             } else {
                 None
@@ -881,6 +880,25 @@ mod tests {
             chunk_starts: Vector3::new(-1f64, -1f64, -1f64),
         }
     }
+
+    #[test]
+    fn static_chunk_entry_object_index() {
+        let entry = TimedChunkEntry::Static(1094);
+        assert_eq!(1094, entry.object_index());
+    }
+
+    #[test]
+    fn dynamic_chunk_entry_object_index() {
+        let entry = TimedChunkEntry::Dynamic(299, 1000, 6000);
+        assert_eq!(299, entry.object_index());
+    }
+
+    #[test]
+    fn final_chunk_entry_object_index() {
+        let entry = TimedChunkEntry::Final(4901, 6000);
+        assert_eq!(4901, entry.object_index());
+    }
+
 
     #[test]
     fn create_chunk_entry_static_dynamic_and_final() {

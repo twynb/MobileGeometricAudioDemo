@@ -58,7 +58,7 @@ fn intersection_check_surface_non_looping(
             &pair[1],
             std::cmp::max(time_entry, pair[0].time),
             std::cmp::min(time_exit, pair[1].time),
-            None,
+            0,
         ) {
             return Some((time, coords));
         }
@@ -94,11 +94,14 @@ fn intersection_check_surface_looping(
                 ray,
                 &pair[0],
                 &pair[1],
-                std::cmp::max(time_entry % loop_duration, pair[0].time),
-                std::cmp::min(time_exit % loop_duration, pair[1].time),
-                Some(loop_duration),
+                std::cmp::max(
+                    time_entry,
+                    current_time + pair[0].time,
+                ),
+                std::cmp::min(time_exit, current_time + pair[1].time),
+                current_time,
             ) {
-                return Some((time + current_time, coords));
+                return Some((time, coords));
             }
         }
         // do final check for loop after last keyframe
@@ -127,10 +130,10 @@ fn intersection_check_surface_keyframes(
     keyframe_second: &SurfaceKeyframe<3>,
     time_entry: u32,
     time_exit: u32,
-    loop_duration: Option<u32>,
+    loop_offset: u32,
 ) -> Option<(u32, Vector3<f64>)> {
     let (d3, d2, d1, d0) =
-        surface_polynomial_parameters(ray, keyframe_first, keyframe_second, loop_duration);
+        surface_polynomial_parameters(ray, keyframe_first, keyframe_second, loop_offset);
 
     let intersections = roots::find_roots_cubic(d3, d2, d1, d0);
     let mut intersection: Option<(u32, Vector3<f64>)> = None;
@@ -147,7 +150,7 @@ fn intersection_check_surface_keyframes(
             let Some(surface_coords) = interpolate_two_surface_keyframes(
                 keyframe_first,
                 keyframe_second,
-                *intersection_time,
+                *intersection_time - f64::from(loop_offset),
             ) else {
                 continue;
             };
@@ -168,10 +171,11 @@ fn surface_polynomial_parameters(
     ray: &Ray,
     keyframe_first: &SurfaceKeyframe<3>,
     keyframe_second: &SurfaceKeyframe<3>,
-    loop_duration: Option<u32>,
+    loop_offset: u32,
 ) -> (f64, f64, f64, f64) {
-    let (g2, g1, g0) = surface_cross_product_parameters(keyframe_first, keyframe_second);
-    let ray_time = f64::from(loop_duration.map_or(ray.time, |duration| ray.time % duration)); // t_0
+    let second_time = f64::from(keyframe_second.time + loop_offset); // t_k_2
+    let (g2, g1, g0) = surface_cross_product_parameters(keyframe_first, keyframe_second, second_time);
+    let ray_time = f64::from(ray.time); // t_0
     let velocity = ray.velocity * ray.direction.into_inner();
     let delta_time = f64::from(keyframe_second.time - keyframe_first.time);
     let delta_point_1 = keyframe_second.coords[0] - keyframe_first.coords[0];
@@ -203,7 +207,7 @@ fn surface_polynomial_parameters(
             -g2_dot_velocity,
             g2.dot(&ray.origin) - g2.dot(&keyframe_second.coords[0])
                 + g2_dot_delta_p1_div_delta_time.mul_add(
-                    f64::from(keyframe_second.time),
+                    second_time,
                     g1_dot_velocity - g1_dot_delta_p1_div_delta_time,
                 ),
         ), // d_2
@@ -211,14 +215,14 @@ fn surface_polynomial_parameters(
             -g1_dot_velocity,
             g1.dot(&ray.origin) - g1.dot(&keyframe_second.coords[0])
                 + g1_dot_delta_p1_div_delta_time.mul_add(
-                    f64::from(keyframe_second.time),
+                    second_time,
                     g0_dot_velocity - g0_dot_delta_p1_div_delta_time,
                 ),
         ), // d_1
         ray_time.mul_add(
             -g0_dot_velocity,
             g0_dot_delta_p1_div_delta_time.mul_add(
-                f64::from(keyframe_second.time),
+                second_time,
                 g0.dot(&ray.origin) - g0.dot(&keyframe_second.coords[0]),
             ),
         ), // d_0
@@ -229,8 +233,8 @@ fn surface_polynomial_parameters(
 fn surface_cross_product_parameters(
     keyframe_first: &SurfaceKeyframe<3>,
     keyframe_second: &SurfaceKeyframe<3>,
+    second_time: f64
 ) -> (Vector3<f64>, Vector3<f64>, Vector3<f64>) {
-    let second_time = f64::from(keyframe_second.time);
     let delta_time = f64::from(keyframe_second.time - keyframe_first.time);
     let two_three = surface_sub_cross_product_parameters(
         &keyframe_first.coords[1],
@@ -372,7 +376,7 @@ fn intersection_check_receiver_non_looping(
             radius,
             std::cmp::max(time_entry, pair[0].time),
             std::cmp::min(time_exit, pair[1].time),
-            None,
+            0,
         ) {
             return Some((time, coords));
         }
@@ -411,9 +415,12 @@ fn intersection_check_receiver_looping(
                 &pair[0],
                 &pair[1],
                 radius,
-                std::cmp::max(time_entry % loop_duration, pair[0].time),
-                std::cmp::min(time_exit % loop_duration, pair[1].time),
-                Some(loop_duration),
+                std::cmp::max(
+                    time_entry,
+                    current_time + pair[0].time,
+                ),
+                std::cmp::min(time_exit, current_time + pair[1].time),
+                current_time,
             ) {
                 return Some((current_time + time, coords));
             }
@@ -446,10 +453,10 @@ fn intersection_check_receiver_keyframes(
     radius: f64,
     time_entry: u32,
     time_exit: u32,
-    loop_duration: Option<u32>,
+    loop_offset: u32,
 ) -> Option<(u32, Vector3<f64>)> {
     let (d2, d1, d0) =
-        receiver_polynomial_parameters(ray, keyframe_first, keyframe_second, radius, loop_duration);
+        receiver_polynomial_parameters(ray, keyframe_first, keyframe_second, radius, loop_offset);
     let intersections = roots::find_roots_quadratic(d2, d1, d0);
     let mut intersection: Option<f64> = None;
     for intersection_time in intersections.as_ref() {
@@ -478,14 +485,14 @@ fn receiver_polynomial_parameters(
     keyframe_first: &CoordinateKeyframe,
     keyframe_second: &CoordinateKeyframe,
     radius: f64,
-    loop_duration: Option<u32>,
+    loop_offset: u32,
 ) -> (f64, f64, f64) {
     let p_minus_ck2 = ray.origin - keyframe_second.coords;
-    let ray_time = f64::from(loop_duration.map_or(ray.time, |duration| ray.time % duration));
+    let ray_time = f64::from(ray.time);
     let velocity = ray.velocity * ray.direction.into_inner();
     let delta_time = f64::from(keyframe_second.time - keyframe_first.time);
     let delta_time_squared = delta_time.powi(2);
-    let second_time = f64::from(keyframe_second.time);
+    let second_time = f64::from(keyframe_second.time + loop_offset);
     let delta_center = keyframe_second.coords - keyframe_first.coords;
     let p_minus_ck2_minus_t0_v = p_minus_ck2 - ray_time * velocity;
     let velocity_norm = velocity.norm_squared();
