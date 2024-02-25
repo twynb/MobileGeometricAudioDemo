@@ -257,6 +257,7 @@ fn hit_receiver_moving_towards_ray() {
 
 #[test]
 fn hit_receiver_moving_towards_ray_after_later_start() {
+    let loop_dur = 44100 * 9;
     let receiver_moving_towards_ray = Receiver::Keyframes(
         vec![
             CoordinateKeyframe {
@@ -264,7 +265,7 @@ fn hit_receiver_moving_towards_ray_after_later_start() {
                 coords: Vector3::new(343.3f64, 0f64, 0f64),
             },
             CoordinateKeyframe {
-                time: 44100 * 9,
+                time: loop_dur,
                 coords: Vector3::new(0f64, 0f64, 0f64),
             },
         ],
@@ -275,13 +276,13 @@ fn hit_receiver_moving_towards_ray_after_later_start() {
         Unit::new_normalize(Vector3::new(1f64, 0f64, 0f64)),
         Vector3::new(0f64, 0f64, 0f64),
         1f64,
-        1 + 44100*9,
+        1 + loop_dur,
         DEFAULT_PROPAGATION_SPEED / DEFAULT_SAMPLE_RATE,
     );
 
     assert_intersection_equals(
-        Some((39690 + 44100*9, Vector3::new(308.87, 0.0, 0.0))),
-        intersect_ray_and_receiver(&hitting_ray, &receiver_moving_towards_ray, 0, 10000000, Some(44100*9)),
+        Some((39690 + loop_dur, Vector3::new(308.87, 0.0, 0.0))),
+        intersect_ray_and_receiver(&hitting_ray, &receiver_moving_towards_ray, loop_dur, 10000000, Some(loop_dur)),
     );
 }
 

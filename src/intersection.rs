@@ -422,7 +422,7 @@ fn intersection_check_receiver_looping(
                 std::cmp::min(time_exit, current_time + pair[1].time),
                 current_time,
             ) {
-                return Some((current_time + time, coords));
+                return Some((time, coords));
             }
         }
         // do final check after last keyframe
