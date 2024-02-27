@@ -304,11 +304,11 @@ where
     ) -> Vec<Vec<f64>> {
         data.iter()
             .enumerate()
-            .map(|(idx, val)| (idx, *val))
-            .group_by(|(idx, _val)| *idx as u32 % loop_duration)
-            .into_iter()
-            .map(|(loop_idx, group)| (loop_idx, group.collect()))
-            .collect::<Vec<(u32, Vec<(usize, T)>)>>()
+            .map(|(idx, val)| (idx as u32 % loop_duration, (idx, *val)))
+            // slight hack bc group_by only cares for consecutive elements with the same key
+            .into_group_map()
+            .iter()
+            .collect::<Vec<_>>()
             .par_chunks(1000)
             // .chunks(1000)
             .map(|chunk| {
@@ -320,7 +320,7 @@ where
                     sample_rate,
                     scaling_factor,
                     do_snapshot_method,
-                    loop_duration
+                    loop_duration,
                 );
                 {
                     let cloned_counter = Arc::clone(progress_counter);
@@ -370,25 +370,29 @@ where
     fn simulate_looping_for_chunk<T: Num + NumCast + Clone + Copy + Sync + Send>(
         &self,
         data_len: usize,
-        chunk: &[(u32, Vec<(usize, T)>)],
+        chunk: &[(&u32, &Vec<(usize, T)>)],
         number_of_rays: u32,
         velocity: f64,
         sample_rate: f64,
         scaling_factor: f64,
         do_snapshot_method: bool,
-        loop_duration: u32
+        loop_duration: u32,
     ) -> Vec<f64> {
         let mut buffer: Vec<f64> = vec![0f64; data_len];
         for (idx, value) in chunk {
             let impulse_response = self.simulate_at_time(
-                *idx,
+                **idx,
                 number_of_rays,
                 velocity,
                 sample_rate,
                 do_snapshot_method,
             );
-            let buffer_to_add =
-                impulse_response::apply_looped_to_many_samples(&impulse_response, value, scaling_factor, loop_duration as usize);
+            let buffer_to_add = impulse_response::apply_looped_to_many_samples(
+                &impulse_response,
+                value,
+                scaling_factor,
+                loop_duration as usize,
+            );
             if buffer.len() < buffer_to_add.len() {
                 buffer.resize(buffer_to_add.len(), 0f64);
             }

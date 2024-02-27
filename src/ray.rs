@@ -301,6 +301,10 @@ impl Ray {
         <C as Mul>::Output: Mul<C>,
         <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
     {
+        // hack to prevent panicking in case the bound calculation has errors
+        if *key > max_chunk_key::<C>() {
+            return IntersectionCheckResult::OutOfBounds;
+        }
         let intersection = self.intersection_check_in_chunk(
             *key as u32,
             *last_time,
@@ -590,4 +594,17 @@ struct ChunkTraversalDataDimension {
     time: f64,
     delta_time: f64,
     bound: f64,
+}
+
+// The maximum chunk key for C.
+fn max_chunk_key<C: typenum::Unsigned>() -> i32 {
+    (C::to_i32() - 1 ) * C::to_i32() * C::to_i32() + (C::to_i32() - 1) * C::to_i32() + C::to_i32() - 1
+    /*
+    // maybe tinker more here, for now we take the performance hit from doing the above
+    type first<C> = <C as Sub<typenum::U1>>::Output;
+    type second<C> = <first<C> as Mul<C>>::Output;
+    type third<C> =  <second<C> as Mul<C>>::Output;
+    type result<C> = <<third<C> as Add<second<C>>>::Output as Add<first<C>>>::Output;
+    result::<C>::to_i32()
+    */
 }

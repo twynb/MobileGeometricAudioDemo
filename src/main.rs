@@ -1,9 +1,10 @@
 use std::{
     sync::{
         atomic::{AtomicU32, Ordering},
+        mpsc::{self, Sender, TryRecvError},
         Arc,
     },
-    thread::{self, sleep, JoinHandle},
+    thread::{self, sleep},
     time::Instant,
 };
 
@@ -69,6 +70,7 @@ fn main() {
         1 => scene_builder::static_receiver_scene(),
         2 => scene_builder::approaching_receiver_scene(header.sampling_rate),
         3 => scene_builder::long_approaching_receiver_scene(header.sampling_rate),
+        4 => scene_builder::rotating_cube_scene(header.sampling_rate),
         _ => {
             println!("Invalid scene index! The following scene indices are supported:");
             print_supported_scenes();
@@ -80,13 +82,15 @@ fn main() {
         1 => "static receiver",
         2 => "approaching receiver 1s",
         3 => "approaching receiver 4s",
+        4 => "rotating cube 1s",
         _ => "error",
     };
     println!("Selected scene #{scene_index}: \"{scene_name}\".");
+    let loop_duration = scene.loop_duration;
     let scene_data = SceneData::<typenum::U10>::create_for_scene(scene);
 
     let progress_counter = Arc::new(AtomicU32::new(0));
-    let progress_counter_thread = spawn_progress_counter_thread(input_sound_len, &progress_counter);
+    let kill_rx = spawn_progress_counter_thread(input_sound_len, &progress_counter, loop_duration);
 
     println!("Calculating and applying {input_sound_len} impulse responses with {number_of_rays} rays each, this will take a loooong while...");
     let time_start = Instant::now();
@@ -100,7 +104,7 @@ fn main() {
         &progress_counter,
     );
     let elapsed = time_start.elapsed().as_secs();
-    let _ = progress_counter_thread.join(); // we don't really care if this somehow fails
+    let _ = kill_rx.send(()); // we don't really care if this somehow fails
     println!(
         "Finished calculation in {}:{:02}:{:02}",
         elapsed / 3600,
@@ -120,21 +124,29 @@ fn print_supported_scenes() {
     println!("\t1 - Static Receiver");
     println!("\t2 - Approaching Receiver 1s");
     println!("\t3 - Approaching Receiver 4s");
+    println!("\t4 - Rotating Cube 1s");
 }
 
 /// Spawn a thread that repeatedly checks the progress counter and displays progress.
-fn spawn_progress_counter_thread(input_sound_len: usize, progress_counter: &Arc<AtomicU32>) -> JoinHandle<()> {
-    let number_of_chunks = (input_sound_len / 1000) as u32 + u32::from(input_sound_len % 1000 != 0);
+fn spawn_progress_counter_thread(
+    input_sound_len: usize,
+    progress_counter: &Arc<AtomicU32>,
+    loop_duration: Option<u32>
+) -> Sender<()> {
+    let input_len = loop_duration.unwrap_or(input_sound_len as u32) as usize;
+    let number_of_chunks = (input_len / 1000) as u32 + u32::from(input_len % 1000 != 0);
     let cloned_counter = Arc::clone(progress_counter);
+    let (tx, rx) = mpsc::channel();
     thread::spawn(move || loop {
-        let current_value = {
-            cloned_counter.load(Ordering::Relaxed)
-        };
+        let current_value = { cloned_counter.load(Ordering::Relaxed) };
         print!("\rFinished {current_value}/{number_of_chunks} Batches");
-        if current_value >= number_of_chunks {
-            println!();
-            break;
-        }
+        match rx.try_recv() {
+            Ok(_) | Err(TryRecvError::Disconnected) => {
+                return;
+            }
+            Err(TryRecvError::Empty) => (),
+        };
         sleep(std::time::Duration::from_millis(100));
-    })
+    });
+    tx
 }
