@@ -4,7 +4,7 @@ use std::{
         mpsc::{self, Sender, TryRecvError},
         Arc,
     },
-    thread::{self, sleep},
+    thread::{self, JoinHandle, sleep},
     time::Instant,
 };
 
@@ -71,6 +71,7 @@ fn main() {
         2 => scene_builder::approaching_receiver_scene(header.sampling_rate),
         3 => scene_builder::long_approaching_receiver_scene(header.sampling_rate),
         4 => scene_builder::rotating_cube_scene(header.sampling_rate),
+        5 => scene_builder::rotating_l_scene(header.sampling_rate),
         _ => {
             println!("Invalid scene index! The following scene indices are supported:");
             print_supported_scenes();
@@ -83,6 +84,7 @@ fn main() {
         2 => "approaching receiver 1s",
         3 => "approaching receiver 4s",
         4 => "rotating cube 1s",
+        5 => "rotating cube 1s",
         _ => "error",
     };
     println!("Selected scene #{scene_index}: \"{scene_name}\".");
@@ -90,7 +92,7 @@ fn main() {
     let scene_data = SceneData::<typenum::U10>::create_for_scene(scene);
 
     let progress_counter = Arc::new(AtomicU32::new(0));
-    let kill_rx = spawn_progress_counter_thread(input_sound_len, &progress_counter, loop_duration);
+    let (progress_counter_handle, progress_counter_kill_tx) = spawn_progress_counter_thread(input_sound_len, &progress_counter, loop_duration);
 
     println!("Calculating and applying {input_sound_len} impulse responses with {number_of_rays} rays each, this will take a loooong while...");
     let time_start = Instant::now();
@@ -99,12 +101,13 @@ fn main() {
         number_of_rays,
         DEFAULT_PROPAGATION_SPEED,
         f64::from(header.sampling_rate),
-        1f64 / scaling_factor,
+        scaling_factor,
         do_snapshot_method,
         &progress_counter,
     );
     let elapsed = time_start.elapsed().as_secs();
-    let _ = kill_rx.send(()); // we don't really care if this somehow fails
+    let _ = progress_counter_kill_tx.send(()); // we don't really care if this somehow fails
+    _ = progress_counter_handle.join(); // same here
     println!(
         "Finished calculation in {}:{:02}:{:02}",
         elapsed / 3600,
@@ -125,6 +128,7 @@ fn print_supported_scenes() {
     println!("\t2 - Approaching Receiver 1s");
     println!("\t3 - Approaching Receiver 4s");
     println!("\t4 - Rotating Cube 1s");
+    println!("\t5 - Rotating L 1s");
 }
 
 /// Spawn a thread that repeatedly checks the progress counter and displays progress.
@@ -132,21 +136,22 @@ fn spawn_progress_counter_thread(
     input_sound_len: usize,
     progress_counter: &Arc<AtomicU32>,
     loop_duration: Option<u32>
-) -> Sender<()> {
+) -> (JoinHandle<()>, Sender<()>) {
     let input_len = loop_duration.unwrap_or(input_sound_len as u32) as usize;
     let number_of_chunks = (input_len / 1000) as u32 + u32::from(input_len % 1000 != 0);
     let cloned_counter = Arc::clone(progress_counter);
     let (tx, rx) = mpsc::channel();
-    thread::spawn(move || loop {
+    let handle = thread::spawn(move || loop {
         let current_value = { cloned_counter.load(Ordering::Relaxed) };
         print!("\rFinished {current_value}/{number_of_chunks} Batches");
         match rx.try_recv() {
-            Ok(_) | Err(TryRecvError::Disconnected) => {
+            Ok(()) | Err(TryRecvError::Disconnected) => {
+                println!();
                 return;
             }
             Err(TryRecvError::Empty) => (),
         };
         sleep(std::time::Duration::from_millis(100));
     });
-    tx
+    (handle, tx)
 }
