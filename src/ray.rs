@@ -64,7 +64,7 @@ pub struct Ray {
     /// This should usually be ``crate::ray::DEFAULT_PROPAGATION_SPEED`` / ``crate::DEFAULT_SAMPLE_RATE``.
     pub velocity: f64,
     /// The last surface this ray has intersected with, to avoid repeatedly bouncing off the same surface.
-    last_intersected_surface: Option<usize>,
+    pub last_intersected_surface: Option<usize>,
 }
 
 impl Ray {
@@ -152,7 +152,9 @@ impl Ray {
         while self.energy > ENERGY_THRESHOLD {
             let mut chunk_traversal_data = self.init_chunk_traversal_data(scene_data);
             match self.traverse(scene_data, &mut chunk_traversal_data, allow_receiver) {
-                None => self.energy = -1f64, // cancel the loop, we're out of bounds
+                None => {
+                    self.energy = -1f64; // cancel the loop, we're out of bounds
+                }
                 Some((is_receiver, index, time, coords)) => {
                     if is_receiver {
                         // do not change direction because we pass through receivers
@@ -187,7 +189,11 @@ impl Ray {
         <C as Mul>::Output: Mul<C>,
         <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
     {
-        let surface = scene_data.scene.surfaces[index].at_time(time);
+        let looped_time = scene_data
+            .scene
+            .loop_duration
+            .map_or(time, |duration| time % duration);
+        let surface = scene_data.scene.surfaces[index].at_time(looped_time);
         let Surface::Interpolated(_surface_coords, _time, material) = surface else {
             panic!("at_time() somehow returned a non-interpolated surface. This shouldn't happen.")
         };
@@ -346,9 +352,12 @@ impl Ray {
         if !scene_data.chunks.is_chunk_set(key as usize) {
             return IntersectionCheckResult::NoIntersection;
         }
-        let (receivers, surfaces) = scene_data
-            .chunks
-            .objects_at_key_and_time(key, time_entry, time_exit, scene_data.scene.loop_duration);
+        let (receivers, surfaces) = scene_data.chunks.objects_at_key_and_time(
+            key,
+            time_entry,
+            time_exit,
+            scene_data.scene.loop_duration,
+        );
 
         let result = if allow_receiver {
             self.intersection_check_receiver_in_chunk(&receivers, scene_data, time_entry, time_exit)
@@ -384,7 +393,7 @@ impl Ray {
             &scene_data.scene.receiver,
             time_entry,
             time_exit,
-            scene_data.scene.loop_duration
+            scene_data.scene.loop_duration,
         ) {
             return IntersectionCheckResult::Found(true, 0, time, coords);
         }
@@ -411,22 +420,18 @@ impl Ray {
         <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
     {
         for surface_index in surfaces {
-            if let Some(last_index) = self.last_intersected_surface {
-                if last_index == *surface_index {
-                    // skip the last surface we bounced off of
-                    continue;
-                }
-            }
             let Some((time, coords)) = intersection::intersect_ray_and_surface(
                 self,
                 &scene_data.scene.surfaces[*surface_index],
                 time_entry,
                 time_exit,
-                scene_data.scene.loop_duration
+                scene_data.scene.loop_duration,
+                *surface_index
             ) else {
                 // skip surfaces we don't intersect with
                 continue;
             };
+
             if match result {
                 IntersectionCheckResult::Found(_is_recv, _index, result_time, _coords) => {
                     time > result_time
@@ -462,10 +467,10 @@ impl Ray {
                 C::to_i32() * C::to_i32(),
                 self.origin.x,
                 scene_data.chunks.size_x,
-                scene_data
-                    .chunks
-                    .size_x
-                    .mul_add(<f64 as From<u32>>::from(chunk_indices.0), scene_data.chunks.chunk_starts.x),
+                scene_data.chunks.size_x.mul_add(
+                    <f64 as From<u32>>::from(chunk_indices.0),
+                    scene_data.chunks.chunk_starts.x,
+                ),
                 self.time,
                 self.velocity,
                 C::to_u32(),
@@ -476,10 +481,10 @@ impl Ray {
                 C::to_i32(),
                 self.origin.y,
                 scene_data.chunks.size_y,
-                scene_data
-                    .chunks
-                    .size_y
-                    .mul_add(<f64 as From<u32>>::from(chunk_indices.1), scene_data.chunks.chunk_starts.y),
+                scene_data.chunks.size_y.mul_add(
+                    <f64 as From<u32>>::from(chunk_indices.1),
+                    scene_data.chunks.chunk_starts.y,
+                ),
                 self.time,
                 self.velocity,
                 C::to_u32(),
@@ -490,10 +495,10 @@ impl Ray {
                 1,
                 self.origin.z,
                 scene_data.chunks.size_z,
-                scene_data
-                    .chunks
-                    .size_z
-                    .mul_add(<f64 as From<u32>>::from(chunk_indices.2), scene_data.chunks.chunk_starts.z),
+                scene_data.chunks.size_z.mul_add(
+                    <f64 as From<u32>>::from(chunk_indices.2),
+                    scene_data.chunks.chunk_starts.z,
+                ),
                 self.time,
                 self.velocity,
                 C::to_u32(),
@@ -598,7 +603,8 @@ struct ChunkTraversalDataDimension {
 
 // The maximum chunk key for C.
 fn max_chunk_key<C: typenum::Unsigned>() -> i32 {
-    (C::to_i32() - 1 ) * C::to_i32() * C::to_i32() + (C::to_i32() - 1) * C::to_i32() + C::to_i32() - 1
+    (C::to_i32() - 1) * C::to_i32() * C::to_i32() + (C::to_i32() - 1) * C::to_i32() + C::to_i32()
+        - 1
     /*
     // maybe tinker more here, for now we take the performance hit from doing the above
     type first<C> = <C as Sub<typenum::U1>>::Output;
