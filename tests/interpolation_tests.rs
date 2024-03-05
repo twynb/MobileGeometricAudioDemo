@@ -2,7 +2,7 @@ use approx::abs_diff_eq;
 use demo::bounce::EmissionType;
 use demo::interpolation::Interpolation;
 use demo::materials::MATERIAL_CONCRETE_WALL;
-use demo::scene::{CoordinateKeyframe, Emitter, Receiver, Surface, SurfaceKeyframe};
+use demo::scene::{CoordinateKeyframe, Emitter, Receiver, Surface, SurfaceData, SurfaceKeyframe};
 use nalgebra::Vector3;
 
 fn vector_abs_diff_eq(a: Vector3<f64>, b: Vector3<f64>) -> bool {
@@ -40,12 +40,13 @@ fn interpolate_surface() {
                 ],
             },
         ],
-        MATERIAL_CONCRETE_WALL,
+        SurfaceData::new(MATERIAL_CONCRETE_WALL),
     );
     let result = object.at_time(7);
-    let Surface::Interpolated(result_coords, time, material) = result else {
+    let Surface::Interpolated(result_coords, time, surface_data) = result else {
         panic!("Surface wasn't interpolated!")
     };
+    let material = surface_data.material;
     let expected_coords = [
         Vector3::new(18f64, 20f64, 38f64),
         Vector3::new(3.1999998f64, 5.2f64, 14.4f64),

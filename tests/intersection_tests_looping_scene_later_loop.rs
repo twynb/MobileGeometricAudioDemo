@@ -2,7 +2,7 @@ use approx::assert_abs_diff_eq;
 use demo::intersection::{intersect_ray_and_receiver, intersect_ray_and_surface};
 use demo::materials::MATERIAL_CONCRETE_WALL;
 use demo::ray::{Ray, DEFAULT_PROPAGATION_SPEED};
-use demo::scene::{CoordinateKeyframe, Receiver, Surface, SurfaceKeyframe};
+use demo::scene::{CoordinateKeyframe, Receiver, Surface, SurfaceData, SurfaceKeyframe};
 use demo::DEFAULT_SAMPLE_RATE;
 use nalgebra::{Unit, Vector3};
 
@@ -60,7 +60,7 @@ fn static_surface() -> Surface<3> {
             Vector3::new(0f64, 3f64, 10f64),
         ],
         0,
-        MATERIAL_CONCRETE_WALL,
+        SurfaceData::new(MATERIAL_CONCRETE_WALL),
     )
 }
 
@@ -92,7 +92,7 @@ fn moving_surface() -> Surface<3> {
                 ],
             },
         ],
-        MATERIAL_CONCRETE_WALL,
+        SurfaceData::new(MATERIAL_CONCRETE_WALL),
     )
 }
 

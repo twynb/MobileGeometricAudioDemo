@@ -3,7 +3,7 @@ use nalgebra::{Point3, Rotation3, Translation3, Unit, Vector3};
 use crate::{
     bounce::EmissionType,
     materials::{Material, MATERIAL_CONCRETE_WALL},
-    scene::{CoordinateKeyframe, Emitter, Receiver, Scene, Surface, SurfaceKeyframe},
+    scene::{CoordinateKeyframe, Emitter, Receiver, Scene, Surface, SurfaceData, SurfaceKeyframe},
 };
 
 /// Create a static cube primitive described by the given coordinates and material.
@@ -14,7 +14,7 @@ pub fn static_cube(
 ) -> Vec<Surface<3>> {
     cube_polygons(bottom_left, top_right)
         .iter()
-        .map(|coords| Surface::Interpolated(*coords, 0, material))
+        .map(|coords| Surface::Interpolated(*coords, 0, SurfaceData::new(material)))
         .collect()
 }
 
@@ -33,7 +33,7 @@ pub fn rotating_cube(
     );
     keyframes
         .iter()
-        .map(|keys| Surface::Keyframes(keys.clone(), material))
+        .map(|keys| Surface::Keyframes(keys.clone(), SurfaceData::new(material)))
         .collect()
 }
 
@@ -49,7 +49,7 @@ pub fn static_l(
 ) -> Vec<Surface<3>> {
     l_polygons(bottom_left, length_1, length_2, width_1, width_2, height)
         .iter()
-        .map(|coords| Surface::Interpolated(*coords, 0, material))
+        .map(|coords| Surface::Interpolated(*coords, 0, SurfaceData::new(material)))
         .collect()
 }
 
@@ -72,7 +72,7 @@ pub fn rotating_l(
     );
     keyframes
         .iter()
-        .map(|keys| Surface::Keyframes(keys.clone(), material))
+        .map(|keys| Surface::Keyframes(keys.clone(), SurfaceData::new(material)))
         .collect()
 }
 

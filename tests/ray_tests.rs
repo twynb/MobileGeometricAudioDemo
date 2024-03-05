@@ -2,7 +2,7 @@ use demo::{
     bounce::EmissionType,
     materials::{Material, MATERIAL_CONCRETE_WALL},
     ray::{Ray, DEFAULT_PROPAGATION_SPEED},
-    scene::{Emitter, Receiver, Scene, SceneData, Surface},
+    scene::{Emitter, Receiver, Scene, SceneData, Surface, SurfaceData},
     scene_bounds::MaximumBounds,
     scene_builder, DEFAULT_SAMPLE_RATE,
 };
@@ -18,10 +18,10 @@ fn directly_hitting_receiver() {
                 Vector3::new(-10f64, 10f64, 40f64),
             ],
             0,
-            Material {
+            SurfaceData::new(Material {
                 absorption_coefficient: 0.9,
                 diffusion_coefficient: 0f64,
-            },
+            }),
         )],
         receiver: Receiver::Interpolated(Vector3::new(20f64, 0f64, 0f64), 0.1f64, 0),
         emitter: Emitter::Interpolated(Vector3::new(0f64, 0f64, 0f64), 0, EmissionType::Random),
@@ -58,10 +58,10 @@ fn hitting_receiver_after_one_bounce() {
                 Vector3::new(-10f64, 10f64, 40f64),
             ],
             0,
-            Material {
+            SurfaceData::new(Material {
                 absorption_coefficient: 0.9,
                 diffusion_coefficient: 0f64,
-            },
+            }),
         )],
         receiver: Receiver::Interpolated(Vector3::new(20f64, 0f64, 0f64), 0.1f64, 0),
         emitter: Emitter::Interpolated(Vector3::new(0f64, 0f64, 0f64), 0, EmissionType::Random),
@@ -131,10 +131,10 @@ fn hitting_receiver_before_and_after_one_bounce() {
                 Vector3::new(40f64, -100f64, 40f64),
             ],
             0,
-            Material {
+            SurfaceData::new(Material {
                 absorption_coefficient: 0.9,
                 diffusion_coefficient: 0f64,
-            },
+            }),
         )],
         receiver: Receiver::Interpolated(Vector3::new(20f64, 0f64, 0f64), 0.1f64, 0),
         emitter: Emitter::Interpolated(Vector3::new(0f64, 0f64, 0f64), 0, EmissionType::Random),

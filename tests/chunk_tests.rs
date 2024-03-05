@@ -6,7 +6,7 @@ use demo::{
     bounce::EmissionType,
     chunk::{Chunks, SceneChunk, TimedChunkEntry},
     materials::MATERIAL_CONCRETE_WALL,
-    scene::{CoordinateKeyframe, Emitter, Receiver, Scene, Surface, SurfaceKeyframe},
+    scene::{CoordinateKeyframe, Emitter, Receiver, Scene, Surface, SurfaceData, SurfaceKeyframe},
     scene_builder,
 };
 use itertools::Itertools;
@@ -81,7 +81,7 @@ fn moving_scene_and_receiver() -> Scene {
                 ],
             },
         ],
-        MATERIAL_CONCRETE_WALL,
+        SurfaceData::new(MATERIAL_CONCRETE_WALL),
     ));
     Scene {
         receiver: Receiver::Keyframes(
@@ -132,7 +132,7 @@ fn looping_moving_scene_and_receiver() -> Scene {
                 ],
             },
         ],
-        MATERIAL_CONCRETE_WALL,
+        SurfaceData::new(MATERIAL_CONCRETE_WALL),
     ));
     Scene {
         receiver: Receiver::Keyframes(

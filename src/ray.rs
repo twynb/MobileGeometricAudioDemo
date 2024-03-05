@@ -194,9 +194,10 @@ impl Ray {
             .loop_duration
             .map_or(time, |duration| time % duration);
         let surface = scene_data.scene.surfaces[index].at_time(looped_time);
-        let Surface::Interpolated(_surface_coords, _time, material) = surface else {
+        let Surface::Interpolated(_surface_coords, _time, surface_data) = surface else {
             panic!("at_time() somehow returned a non-interpolated surface. This shouldn't happen.")
         };
+        let material = surface_data.material;
 
         let mut normal = surface.normal();
         let mut new_direction = self.direction.into_inner();

@@ -124,7 +124,9 @@ mod tests {
     use crate::{
         bounce::EmissionType,
         materials::MATERIAL_CONCRETE_WALL,
-        scene::{CoordinateKeyframe, Emitter, Receiver, Scene, Surface, SurfaceKeyframe},
+        scene::{
+            CoordinateKeyframe, Emitter, Receiver, Scene, Surface, SurfaceData, SurfaceKeyframe,
+        },
     };
 
     fn empty_scene() -> Scene {
@@ -238,7 +240,7 @@ mod tests {
                             ],
                         },
                     ],
-                    MATERIAL_CONCRETE_WALL,
+                    SurfaceData::new(MATERIAL_CONCRETE_WALL),
                 ),
                 Surface::Keyframes(
                     vec![
@@ -267,7 +269,7 @@ mod tests {
                             ],
                         },
                     ],
-                    MATERIAL_CONCRETE_WALL,
+                    SurfaceData::new(MATERIAL_CONCRETE_WALL),
                 ),
             ],
             emitter: Emitter::Keyframes(

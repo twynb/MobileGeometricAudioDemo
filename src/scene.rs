@@ -55,13 +55,24 @@ pub struct SurfaceKeyframe<const N: usize> {
     pub coords: [Vector3<f64>; N],
 }
 
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct SurfaceData {
+    pub material: Material,
+}
+
+impl SurfaceData {
+    pub fn new(material: Material) -> Self {
+        Self { material }
+    }
+}
+
 /// Surface in the scene.
 /// Either has its separate keyframes (sorted by time) or a single interpolated keyframe at a given time.
 /// Also contains the surface's material.
 #[derive(Clone, PartialEq, Debug)]
 pub enum Surface<const N: usize> {
-    Keyframes(Vec<SurfaceKeyframe<N>>, Material),
-    Interpolated([Vector3<f64>; N], u32, Material),
+    Keyframes(Vec<SurfaceKeyframe<N>>, SurfaceData),
+    Interpolated([Vector3<f64>; N], u32, SurfaceData),
 }
 
 impl<const N: usize> Surface<N> {
