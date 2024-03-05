@@ -4,7 +4,7 @@ use std::{
         mpsc::{self, Sender, TryRecvError},
         Arc,
     },
-    thread::{self, JoinHandle, sleep},
+    thread::{self, sleep, JoinHandle},
     time::Instant,
 };
 
@@ -22,6 +22,7 @@ fn main() {
     let mut number_of_rays: u32 = DEFAULT_NUMBER_OF_RAYS;
     let mut scaling_factor: f64 = DEFAULT_SCALING_FACTOR;
     let mut do_snapshot_method: bool = false;
+    let mut single_ir: bool = false;
     let mut out_fname: &str = "result.wav";
 
     for arg in args.iter().skip(1) {
@@ -40,6 +41,7 @@ fn main() {
                     .unwrap_or_else(|_| panic!("\"--rays\" needs to be passed a number!"));
             }
             "--snapshot-method" => do_snapshot_method = true,
+            "--single-ir" => single_ir = true,
             "--outfile" => out_fname = arg_split[1],
             _ => panic!("Unknown argument {}", arg_split[0]),
         };
@@ -52,13 +54,16 @@ fn main() {
         .unwrap_or_else(|_| panic!("Input file couldn't be opened!"));
     let (header, input_data) = wav::read(&mut input_file)
         .unwrap_or_else(|_| panic!("An error occurred while parsing the input file!"));
-    let input_sound_len: usize = match &input_data {
+    let mut input_sound_len: usize = match &input_data {
         wav::BitDepth::Eight(data) => data.len(),
         wav::BitDepth::Sixteen(data) => data.len(),
         wav::BitDepth::TwentyFour(data) => data.len(),
         wav::BitDepth::ThirtyTwoFloat(data) => data.len(),
         wav::BitDepth::Empty => panic!("Input file did not contain any data!"),
     };
+    if single_ir  {
+        input_sound_len = 1;
+    }
 
     let Some(scene_index) = scene_index else {
         println!("Please provide a valid scene index using \"--scene=INDEX\"! The following scene indices are supported:");
@@ -92,7 +97,8 @@ fn main() {
     let scene_data = SceneData::<typenum::U10>::create_for_scene(scene);
 
     let progress_counter = Arc::new(AtomicU32::new(0));
-    let (progress_counter_handle, progress_counter_kill_tx) = spawn_progress_counter_thread(input_sound_len, &progress_counter, loop_duration);
+    let (progress_counter_handle, progress_counter_kill_tx) =
+        spawn_progress_counter_thread(input_sound_len, &progress_counter, loop_duration);
 
     println!("Calculating and applying {input_sound_len} impulse responses with {number_of_rays} rays each, this will take a loooong while...");
     let time_start = Instant::now();
@@ -104,6 +110,7 @@ fn main() {
         scaling_factor,
         do_snapshot_method,
         &progress_counter,
+        single_ir,
     );
     let elapsed = time_start.elapsed().as_secs();
     let _ = progress_counter_kill_tx.send(()); // we don't really care if this somehow fails
@@ -135,7 +142,7 @@ fn print_supported_scenes() {
 fn spawn_progress_counter_thread(
     input_sound_len: usize,
     progress_counter: &Arc<AtomicU32>,
-    loop_duration: Option<u32>
+    loop_duration: Option<u32>,
 ) -> (JoinHandle<()>, Sender<()>) {
     let input_len = loop_duration.unwrap_or(input_sound_len as u32) as usize;
     let cloned_counter = Arc::clone(progress_counter);
@@ -150,7 +157,7 @@ fn spawn_progress_counter_thread(
             }
             Err(TryRecvError::Empty) => (),
         };
-        sleep(std::time::Duration::from_millis(100));
+        sleep(std::time::Duration::from_millis(1000));
     });
     (handle, tx)
 }

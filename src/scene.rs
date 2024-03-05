@@ -153,6 +153,7 @@ where
         scaling_factor: f64,
         do_snapshot_method: bool,
         progress_counter: &Arc<AtomicU32>,
+        single_ir: bool,
     ) -> BitDepth {
         match input_data {
             BitDepth::Eight(data) => BitDepth::Eight(self.simulate_for_time_span_internal(
@@ -163,6 +164,7 @@ where
                 scaling_factor,
                 do_snapshot_method,
                 progress_counter,
+                single_ir,
             )),
             BitDepth::Sixteen(data) => BitDepth::Sixteen(self.simulate_for_time_span_internal(
                 data,
@@ -172,6 +174,7 @@ where
                 scaling_factor,
                 do_snapshot_method,
                 progress_counter,
+                single_ir,
             )),
             BitDepth::TwentyFour(data) => {
                 BitDepth::TwentyFour(self.simulate_for_time_span_internal(
@@ -182,6 +185,7 @@ where
                     scaling_factor,
                     do_snapshot_method,
                     progress_counter,
+                    single_ir,
                 ))
             }
             BitDepth::ThirtyTwoFloat(data) => {
@@ -193,6 +197,7 @@ where
                     scaling_factor,
                     do_snapshot_method,
                     progress_counter,
+                    single_ir,
                 ))
             }
             BitDepth::Empty => BitDepth::Empty,
@@ -212,7 +217,81 @@ where
         scaling_factor: f64,
         do_snapshot_method: bool,
         progress_counter: &Arc<AtomicU32>,
+        single_ir: bool,
     ) -> Vec<T> {
+        let buffer = if single_ir {
+            self.simulate_for_time_span_single_ir(
+                data,
+                number_of_rays,
+                velocity,
+                sample_rate,
+                scaling_factor,
+                do_snapshot_method,
+            )
+        } else {
+            self.simulate_for_time_span_multiple_irs(
+                data,
+                number_of_rays,
+                velocity,
+                sample_rate,
+                scaling_factor,
+                do_snapshot_method,
+                progress_counter,
+            )
+        };
+        let mut had_to_clip = false;
+        buffer
+            .iter()
+            .map(|val| {
+                // clipping in case we exceed T's range
+                // shouldn't be necessary if scaling_factor does its job
+                num::cast::<f64, T>(*val).unwrap_or_else(|| {
+                    if !had_to_clip {
+                        had_to_clip = true;
+                        println!("WARNING: Part of the resulting audio had to be clipped because it exceeded the file format's range. Please try a bigger scaling factor.");
+                    }
+                    if *val > 0f64 {
+                        T::max_value()
+                    } else {
+                        T::min_value()
+                    }
+                })
+            })
+            .collect()
+    }
+
+    fn simulate_for_time_span_single_ir<T: Num + NumCast + Bounded + Copy + Clone + Sync + Send>(
+        &self,
+        data: &[T],
+        number_of_rays: u32,
+        velocity: f64,
+        sample_rate: f64,
+        scaling_factor: f64,
+        do_snapshot_method: bool,
+    ) -> Vec<f64> {
+        let impulse_response = self.simulate_at_time(
+            0,
+            number_of_rays,
+            velocity,
+            sample_rate,
+            do_snapshot_method,
+            true,
+        );
+        impulse_response::apply_to_many_samples(&impulse_response, data, scaling_factor)
+    }
+
+    fn simulate_for_time_span_multiple_irs<
+        T: Num + NumCast + Bounded + Copy + Clone + Sync + Send,
+    >(
+        &self,
+        data: &[T],
+        number_of_rays: u32,
+        velocity: f64,
+        sample_rate: f64,
+        scaling_factor: f64,
+        do_snapshot_method: bool,
+        progress_counter: &Arc<AtomicU32>,
+    ) -> Vec<f64> {
         let buffers: Vec<Vec<f64>> = match self.scene.loop_duration {
             Some(duration) => self.simulate_for_time_span_looping(
                 data,
@@ -242,25 +321,7 @@ where
                 .zip(buffer_to_add)
                 .for_each(|(val, to_add)| *val += *to_add);
         }
-        let mut had_to_clip = false;
         buffer
-            .iter()
-            .map(|val| {
-                // clipping in case we exceed T's range
-                // shouldn't be necessary if scaling_factor does its job
-                num::cast::<f64, T>(*val).unwrap_or_else(|| {
-                    if !had_to_clip {
-                        had_to_clip = true;
-                        println!("WARNING: Part of the resulting audio had to be clipped because it exceeded the file format's range. Please try a bigger scaling factor.");
-                    }
-                    if *val > 0f64 {
-                        T::max_value()
-                    } else {
-                        T::min_value()
-                    }
-                })
-            })
-            .collect()
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -280,10 +341,9 @@ where
             .enumerate()
             .map(|(idx, val)| (idx, *val))
             .collect::<Vec<(usize, T)>>()
-            .par_chunks(1000)
-            // .chunks(1000)
+            .par_chunks(100)
+            // .chunks(100)
             .map(|chunk| {
-                let cloned_counter = Arc::clone(progress_counter);
                 let result = self.simulate_for_chunk(
                     data.len(),
                     chunk,
@@ -292,8 +352,11 @@ where
                     sample_rate,
                     scaling_factor,
                     do_snapshot_method,
-                    cloned_counter
                 );
+                {
+                    let cloned_counter = Arc::clone(progress_counter);
+                    cloned_counter.fetch_add(1, Ordering::AcqRel);
+                }
                 result
             })
             .collect()
@@ -318,10 +381,9 @@ where
             .into_group_map()
             .iter()
             .collect::<Vec<_>>()
-            .par_chunks(1000)
-            // .chunks(1000)
+            .par_chunks(100)
+            // .chunks(100)
             .map(|chunk| {
-                let cloned_counter = Arc::clone(progress_counter);
                 let result = self.simulate_looping_for_chunk(
                     data.len(),
                     chunk,
@@ -331,8 +393,11 @@ where
                     scaling_factor,
                     do_snapshot_method,
                     loop_duration,
-                    cloned_counter
                 );
+                {
+                    let cloned_counter = Arc::clone(progress_counter);
+                    cloned_counter.fetch_add(1, Ordering::AcqRel);
+                }
                 result
             })
             .collect()
@@ -349,7 +414,6 @@ where
         sample_rate: f64,
         scaling_factor: f64,
         do_snapshot_method: bool,
-        progress_counter: Arc<AtomicU32>
     ) -> Vec<f64> {
         let mut buffer: Vec<f64> = vec![0f64; data_len];
         for (idx, value) in chunk {
@@ -359,6 +423,7 @@ where
                 velocity,
                 sample_rate,
                 do_snapshot_method,
+                false,
             );
             let buffer_to_add =
                 impulse_response::apply_to_sample(&impulse_response, *value, *idx, scaling_factor);
@@ -369,7 +434,6 @@ where
                 .iter_mut()
                 .zip(&buffer_to_add)
                 .for_each(|(val, to_add)| *val += *to_add);
-            progress_counter.fetch_add(1, Ordering::AcqRel);
         }
         buffer
     }
@@ -386,7 +450,6 @@ where
         scaling_factor: f64,
         do_snapshot_method: bool,
         loop_duration: u32,
-        progress_counter: Arc<AtomicU32>
     ) -> Vec<f64> {
         let mut buffer: Vec<f64> = vec![0f64; data_len];
         for (idx, value) in chunk {
@@ -396,6 +459,7 @@ where
                 velocity,
                 sample_rate,
                 do_snapshot_method,
+                false,
             );
             let buffer_to_add = impulse_response::apply_looped_to_many_samples(
                 &impulse_response,
@@ -410,7 +474,6 @@ where
                 .iter_mut()
                 .zip(&buffer_to_add)
                 .for_each(|(val, to_add)| *val += *to_add);
-            progress_counter.fetch_add(1, Ordering::AcqRel);
         }
         buffer
     }
@@ -425,6 +488,7 @@ where
         velocity: f64,
         sample_rate: f64,
         do_snapshot_method: bool,
+        parallel: bool,
     ) -> Vec<f64> {
         let mut scene_data = self;
         let interp_scene_data;
@@ -439,9 +503,16 @@ where
             scene_data = &interp_scene_data;
         }
 
-        let rt_results: Vec<(f64, u32)> = (0..number_of_rays)
-            .flat_map(|_| scene_data.launch_ray(time, velocity, sample_rate))
-            .collect();
+        let rt_results: Vec<(f64, u32)> = if parallel {
+            (0..number_of_rays)
+                .into_par_iter()
+                .flat_map(|_| scene_data.launch_ray(time, velocity, sample_rate))
+                .collect()
+        } else {
+            (0..number_of_rays)
+                .flat_map(|_| scene_data.launch_ray(time, velocity, sample_rate))
+                .collect()
+        };
         to_impulse_response(&rt_results, number_of_rays)
     }
 

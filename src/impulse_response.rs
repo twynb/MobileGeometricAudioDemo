@@ -1,5 +1,3 @@
-use wav::BitDepth;
-
 /// Convert a set of intersection events into an impulse response.
 /// Each event (described as a combination of the energy and time)
 /// is stored in the IR buffer at its relevant time.
@@ -22,30 +20,10 @@ pub fn to_impulse_response(results: &[(f64, u32)], number_of_rays: u32) -> Vec<f
         .collect()
 }
 
-/// Apply a set of impulse responses to a set of audio data from a wav file.
-/// see `apply_to_data_internal` for details.
-pub fn apply_to_data(impulse_response: &[Vec<f64>], data: &BitDepth) -> BitDepth {
-    match data {
-        BitDepth::Eight(stream) => {
-            BitDepth::Eight(apply_to_data_internal(impulse_response, stream))
-        }
-        BitDepth::Sixteen(stream) => {
-            BitDepth::Sixteen(apply_to_data_internal(impulse_response, stream))
-        }
-        BitDepth::TwentyFour(stream) => {
-            BitDepth::TwentyFour(apply_to_data_internal(impulse_response, stream))
-        }
-        BitDepth::ThirtyTwoFloat(stream) => {
-            BitDepth::ThirtyTwoFloat(apply_to_data_internal(impulse_response, stream))
-        }
-        BitDepth::Empty => BitDepth::Empty,
-    }
-}
-
 /// Internal logic to apply a set of impulse responses to a set of `data` points.
 /// This assumes that there are at least as many `impulse_response` entries as there are `data` points.
 /// Each data point has the impulse response at the same time applied to it.
-fn apply_to_data_internal<T: num::Num + num::NumCast + Clone + Copy>(
+pub fn apply_to_data<T: num::Num + num::NumCast + Clone + Copy>(
     impulse_response: &[Vec<f64>],
     data: &[T],
 ) -> Vec<T> {
@@ -76,6 +54,23 @@ pub fn apply_to_sample<T: num::Num + num::NumCast + Clone + Copy>(
     let mut buffer = vec![0f64; impulse_response.len() + index + 1];
     for (idx, value) in impulse_response.iter().enumerate() {
         buffer[idx] = num::cast::<T, f64>(sample).unwrap_or(0f64) * value * scaling_factor;
+    }
+    buffer
+}
+
+/// Apply a single impulse response to several data points from a looping scene.
+/// This assumes the samples are sorted by index.
+pub fn apply_to_many_samples<T: num::Num + num::NumCast + Clone + Copy>(
+    impulse_response: &[f64],
+    samples: &[T],
+    scaling_factor: f64,
+) -> Vec<f64> {
+    let mut buffer =
+        vec![0f64; impulse_response.len() + samples.len() + 1];
+    for (idx, value) in impulse_response.iter().enumerate() {
+        for (sample_num, sample) in samples.iter().enumerate() {
+            buffer[idx + sample_num] += num::cast::<T, f64>(*sample).unwrap_or(0f64) * value * scaling_factor;
+        }
     }
     buffer
 }
