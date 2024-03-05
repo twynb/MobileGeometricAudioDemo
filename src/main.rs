@@ -138,12 +138,11 @@ fn spawn_progress_counter_thread(
     loop_duration: Option<u32>
 ) -> (JoinHandle<()>, Sender<()>) {
     let input_len = loop_duration.unwrap_or(input_sound_len as u32) as usize;
-    let number_of_chunks = (input_len / 1000) as u32 + u32::from(input_len % 1000 != 0);
     let cloned_counter = Arc::clone(progress_counter);
     let (tx, rx) = mpsc::channel();
     let handle = thread::spawn(move || loop {
         let current_value = { cloned_counter.load(Ordering::Relaxed) };
-        print!("\rFinished {current_value}/{number_of_chunks} Batches");
+        print!("\rFinished {current_value}/{input_len} IRs!");
         match rx.try_recv() {
             Ok(()) | Err(TryRecvError::Disconnected) => {
                 println!();

@@ -283,6 +283,7 @@ where
             .par_chunks(1000)
             // .chunks(1000)
             .map(|chunk| {
+                let cloned_counter = Arc::clone(progress_counter);
                 let result = self.simulate_for_chunk(
                     data.len(),
                     chunk,
@@ -291,11 +292,8 @@ where
                     sample_rate,
                     scaling_factor,
                     do_snapshot_method,
+                    cloned_counter
                 );
-                {
-                    let cloned_counter = Arc::clone(progress_counter);
-                    cloned_counter.fetch_add(1, Ordering::AcqRel);
-                }
                 result
             })
             .collect()
@@ -323,6 +321,7 @@ where
             .par_chunks(1000)
             // .chunks(1000)
             .map(|chunk| {
+                let cloned_counter = Arc::clone(progress_counter);
                 let result = self.simulate_looping_for_chunk(
                     data.len(),
                     chunk,
@@ -332,11 +331,8 @@ where
                     scaling_factor,
                     do_snapshot_method,
                     loop_duration,
+                    cloned_counter
                 );
-                {
-                    let cloned_counter = Arc::clone(progress_counter);
-                    cloned_counter.fetch_add(1, Ordering::AcqRel);
-                }
                 result
             })
             .collect()
@@ -353,6 +349,7 @@ where
         sample_rate: f64,
         scaling_factor: f64,
         do_snapshot_method: bool,
+        progress_counter: Arc<AtomicU32>
     ) -> Vec<f64> {
         let mut buffer: Vec<f64> = vec![0f64; data_len];
         for (idx, value) in chunk {
@@ -372,6 +369,7 @@ where
                 .iter_mut()
                 .zip(&buffer_to_add)
                 .for_each(|(val, to_add)| *val += *to_add);
+            progress_counter.fetch_add(1, Ordering::AcqRel);
         }
         buffer
     }
@@ -388,6 +386,7 @@ where
         scaling_factor: f64,
         do_snapshot_method: bool,
         loop_duration: u32,
+        progress_counter: Arc<AtomicU32>
     ) -> Vec<f64> {
         let mut buffer: Vec<f64> = vec![0f64; data_len];
         for (idx, value) in chunk {
@@ -411,6 +410,7 @@ where
                 .iter_mut()
                 .zip(&buffer_to_add)
                 .for_each(|(val, to_add)| *val += *to_add);
+            progress_counter.fetch_add(1, Ordering::AcqRel);
         }
         buffer
     }
