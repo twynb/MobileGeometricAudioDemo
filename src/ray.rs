@@ -31,7 +31,7 @@ enum IntersectionCheckResult {
     /// * The surface's index (or 0 for receivers)
     /// * The intersection time
     /// * The intersection position's coordinates.
-    Found(bool, usize, u32, Vector3<f64>),
+    Found(bool, usize, f64, Vector3<f64>),
     /// No intersection has been found, continue propagating this ray.
     NoIntersection,
     /// The ray has gone out of bounds. No need to bother propagating it further.
@@ -57,9 +57,9 @@ pub struct Ray {
     /// This starts out at 1.0f64 and if it goes near/below 0f64, this ray can
     /// be discarded.
     pub energy: f64,
-    /// The time at which the ray arrives at the receiver, in samples. - this
+    /// The time at which the ray is launched, in samples. - this
     /// should get incremented with every bounce.
-    pub time: u32,
+    pub time: f64,
     /// The velocity at which the ray moves, in meters per sample.
     /// This should usually be ``crate::ray::DEFAULT_PROPAGATION_SPEED`` / ``crate::DEFAULT_SAMPLE_RATE``.
     pub velocity: f64,
@@ -70,7 +70,7 @@ pub struct Ray {
 impl Ray {
     /// Create a new ray with the given parameters.
     /// This function is only relevant for testing purposes and shouldn't be used otherwise.
-    pub const fn new(
+    pub fn new(
         direction: Unit<Vector3<f64>>,
         origin: Vector3<f64>,
         energy: f64,
@@ -81,7 +81,7 @@ impl Ray {
             direction,
             origin,
             energy,
-            time,
+            time: <f64 as From<u32>>::from(time),
             velocity,
             last_intersected_surface: None,
         }
@@ -129,7 +129,7 @@ impl Ray {
             direction: Unit::new_normalize(direction),
             origin,
             velocity: velocity / sample_rate,
-            time: start_time,
+            time: <f64 as From<u32>>::from(start_time),
             ..Default::default()
         };
 
@@ -158,7 +158,7 @@ impl Ray {
                 Some((is_receiver, index, time, coords)) => {
                     if is_receiver {
                         // do not change direction because we pass through receivers
-                        result.push((self.energy, time));
+                        result.push((self.energy, time.round() as u32));
                         allow_receiver = false;
                         self.origin = coords;
                         self.last_intersected_surface = None;
@@ -181,7 +181,7 @@ impl Ray {
     fn bounce_from_intersection<C>(
         &mut self,
         scene_data: &SceneData<C>,
-        time: u32,
+        time: f64,
         coords: Vector3<f64>,
         index: usize,
     ) where
@@ -192,7 +192,9 @@ impl Ray {
         let looped_time = scene_data
             .scene
             .loop_duration
-            .map_or(time, |duration| time % duration);
+            .map_or(time.round() as u32, |duration| {
+                time.round() as u32 % duration
+            });
         let surface = scene_data.scene.surfaces[index].at_time(looped_time);
         let Surface::Interpolated(_surface_coords, _time, surface_data) = surface else {
             panic!("at_time() somehow returned a non-interpolated surface. This shouldn't happen.")
@@ -233,7 +235,7 @@ impl Ray {
         scene_data: &SceneData<C>,
         chunk_traversal_data: &mut ChunkTraversalData,
         allow_receiver: bool,
-    ) -> Option<(bool, usize, u32, Vector3<f64>)>
+    ) -> Option<(bool, usize, f64, Vector3<f64>)>
     where
         C: Unsigned + Mul<C>,
         <C as Mul>::Output: Mul<C>,
@@ -427,7 +429,7 @@ impl Ray {
                 time_entry,
                 time_exit,
                 scene_data.scene.loop_duration,
-                *surface_index
+                *surface_index,
             ) else {
                 // skip surfaces we don't intersect with
                 continue;
@@ -435,7 +437,7 @@ impl Ray {
 
             if match result {
                 IntersectionCheckResult::Found(_is_recv, _index, result_time, _coords) => {
-                    time > result_time
+                    time < result_time
                 }
                 _ => true,
             } {
@@ -462,7 +464,7 @@ impl Ray {
             as i32;
         ChunkTraversalData {
             key,
-            last_time: self.time,
+            last_time: self.time.floor() as u32,
             x: init_chunk_traversal_data_dimension(
                 self.direction[0], // we can directly use direction as direction cosine because it's a unit vector
                 C::to_i32() * C::to_i32(),
@@ -472,7 +474,7 @@ impl Ray {
                     <f64 as From<u32>>::from(chunk_indices.0),
                     scene_data.chunks.chunk_starts.x,
                 ),
-                self.time,
+                self.time.floor() as u32,
                 self.velocity,
                 C::to_u32(),
                 chunk_indices.0,
@@ -486,7 +488,7 @@ impl Ray {
                     <f64 as From<u32>>::from(chunk_indices.1),
                     scene_data.chunks.chunk_starts.y,
                 ),
-                self.time,
+                self.time.floor() as u32,
                 self.velocity,
                 C::to_u32(),
                 chunk_indices.1,
@@ -500,7 +502,7 @@ impl Ray {
                     <f64 as From<u32>>::from(chunk_indices.2),
                     scene_data.chunks.chunk_starts.z,
                 ),
-                self.time,
+                self.time.floor() as u32,
                 self.velocity,
                 C::to_u32(),
                 chunk_indices.2,
@@ -545,7 +547,7 @@ fn init_chunk_traversal_data_dimension(
             // we'd rather have it be a bit too small (=> nothing changes) than a bit too large (=> we don't return out where we should)
             bound: maths::trunc_to_n_significant_digits(
                 <f64 as From<u32>>::from(num_chunks - chunk_index) * delta_direction,
-                6,
+                10,
             ),
         }
     } else {
@@ -562,7 +564,7 @@ fn init_chunk_traversal_data_dimension(
             // we'd rather have it be a bit too small (=> nothing changes) than a bit too large (=> we don't return out where we should)
             bound: maths::trunc_to_n_significant_digits(
                 <f64 as From<u32>>::from(chunk_index + 1) * delta_direction,
-                6,
+                10,
             ),
         }
     }
@@ -574,7 +576,7 @@ impl Default for Ray {
             direction: Unit::new_normalize(Vector3::new(0f64, 1f64, 0f64)),
             origin: Vector3::new(0f64, 0f64, 0f64),
             energy: 1f64,
-            time: 0,
+            time: 0f64,
             velocity: DEFAULT_PROPAGATION_SPEED / DEFAULT_SAMPLE_RATE,
             last_intersected_surface: None,
         }

@@ -84,7 +84,7 @@ fn hitting_receiver_after_one_bounce() {
         &scene_data,
     );
 
-    let expected = vec![(0.9f64, 3621u32)];
+    let expected = vec![(0.9f64, 3622u32)];
     assert_eq!(expected, result);
 }
 

@@ -89,7 +89,7 @@ fn main() {
         2 => "approaching receiver 1s",
         3 => "approaching receiver 4s",
         4 => "rotating cube 1s",
-        5 => "rotating cube 1s",
+        5 => "rotating L 1s",
         _ => "error",
     };
     println!("Selected scene #{scene_index}: \"{scene_name}\".");

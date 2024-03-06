@@ -28,13 +28,23 @@ pub fn random_direction() -> Vector3<f64> {
     )
 }
 
+/// Get a `Vector3` pointing in a random direction.
+/// The returned value is guaranteed to be a unit vector.
+pub fn random_unit_direction() -> Vector3<f64> {
+    let mut res = random_direction();
+    res.normalize_mut();
+    res
+}
+
 /// Get a `Vector3` pointing in a random direction inside the hemisphere
 /// where the given `normal` is the vec from the center to the tip.
-/// The returned value is *NOT* guaranteed to be a unit vector!
+/// 
+/// To avoid errors, this will avoid overly flat angles.
+/// The returned value is guaranteed to be a unit vector.
 pub fn random_direction_in_hemisphere(normal: &Vector3<f64>) -> Vector3<f64> {
-    let mut result = random_direction();
-    while result.dot(normal) <= 0f64 {
-        result = random_direction();
+    let mut result = random_unit_direction();
+    while result.dot(normal) <= 0.05f64 {
+        result = random_unit_direction();
     }
     result
 }

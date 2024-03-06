@@ -22,7 +22,7 @@ pub fn intersect_ray_and_surface(
     time_exit: u32,
     scene_looping_duration: Option<u32>,
     surface_index: usize,
-) -> Option<(u32, Vector3<f64>)> {
+) -> Option<(f64, Vector3<f64>)> {
     match surface {
         Surface::Interpolated(coords, _time, _material) => intersection_check_surface_coordinates(
             ray,
@@ -57,7 +57,7 @@ fn intersection_check_surface_non_looping(
     time_entry: u32,
     time_exit: u32,
     surface_index: usize,
-) -> Option<(u32, Vector3<f64>)> {
+) -> Option<(f64, Vector3<f64>)> {
     for pair in keyframes.windows(2) {
         if pair[1].time < time_entry {
             continue;
@@ -95,7 +95,7 @@ fn intersection_check_surface_looping(
     time_exit: u32,
     loop_duration: u32,
     surface_index: usize,
-) -> Option<(u32, Vector3<f64>)> {
+) -> Option<(f64, Vector3<f64>)> {
     // round start time to last looping time
     let mut current_time = time_entry - (time_entry % loop_duration);
     while current_time <= time_exit {
@@ -147,7 +147,7 @@ fn intersection_check_surface_keyframes(
     time_exit: u32,
     loop_offset: u32,
     surface_index: usize,
-) -> Option<(u32, Vector3<f64>)> {
+) -> Option<(f64, Vector3<f64>)> {
     let (d3, d2, d1, d0) =
         surface_polynomial_parameters(ray, keyframe_first, keyframe_second, loop_offset);
 
@@ -158,16 +158,17 @@ fn intersection_check_surface_keyframes(
     } else {
         roots::find_roots_cubic(d3, d2, d1, d0)
     };
-    let mut intersection: Option<(u32, Vector3<f64>)> = None;
+    let mut intersection: Option<(f64, Vector3<f64>)> = None;
     for intersection_time in intersections.as_ref() {
-        if (intersection_time.floor() as u32) < time_entry
-            || intersection_time.ceil() as u32 > time_exit
+        if *intersection_time < 0f64
+            || (intersection_time.floor() as u32) < time_entry
+            || (intersection_time.ceil() as u32) > time_exit
         {
             continue;
         }
 
         if let Some(last_index) = ray.last_intersected_surface {
-            if last_index == surface_index && intersection_time.ceil() as u32 - ray.time <= 1 {
+            if last_index == surface_index && intersection_time - ray.time as f64 <= 0.4 {
                 // skip the last surface we bounced off of
                 // if we bounce off it immediately again
                 continue;
@@ -175,7 +176,7 @@ fn intersection_check_surface_keyframes(
         }
 
         if match intersection {
-            Some((time, _coords)) => time > intersection_time.round() as u32,
+            Some((time, _coords)) => time > *intersection_time,
             None => true,
         } {
             let Some(surface_coords) = interpolate_two_surface_keyframes(
@@ -189,7 +190,7 @@ fn intersection_check_surface_keyframes(
             let ray_coords = ray.coords_at_time(*intersection_time);
 
             if maths::is_point_inside_triangle(&ray_coords, &surface_coords) {
-                intersection = Some((intersection_time.round() as u32, ray_coords));
+                intersection = Some((*intersection_time, ray_coords));
             }
         }
     }
@@ -335,7 +336,7 @@ fn intersection_check_surface_coordinates(
     time_entry: u32,
     time_exit: u32,
     surface_index: usize,
-) -> Option<(u32, Vector3<f64>)> {
+) -> Option<(f64, Vector3<f64>)> {
     let normal = (coords[1] - coords[0]).cross(&(coords[2] - coords[0]));
     let direction_dot_normal = ray.direction.into_inner().dot(&normal);
     if direction_dot_normal == 0f64 {
@@ -351,7 +352,7 @@ fn intersection_check_surface_coordinates(
     }
 
     if let Some(last_index) = ray.last_intersected_surface {
-        if last_index == surface_index && intersection_time.ceil() as u32 - ray.time <= 1 {
+        if last_index == surface_index && intersection_time - ray.time <= 1f64 {
             // skip the last surface we bounced off of
             // if we bounce off it immediately again
             return None;
@@ -361,7 +362,7 @@ fn intersection_check_surface_coordinates(
     let ray_coords = ray.coords_at_time(intersection_time);
 
     if maths::is_point_inside_triangle(&ray_coords, coords) {
-        Some((intersection_time.round() as u32, ray_coords))
+        Some((intersection_time, ray_coords))
     } else {
         None
     }
@@ -380,7 +381,7 @@ pub fn intersect_ray_and_receiver(
     time_entry: u32,
     time_exit: u32,
     loop_duration: Option<u32>,
-) -> Option<(u32, Vector3<f64>)> {
+) -> Option<(f64, Vector3<f64>)> {
     match receiver {
         Receiver::Interpolated(coords, radius, _time) => {
             intersection_check_receiver_coordinates(ray, coords, *radius, time_entry, time_exit)
@@ -402,7 +403,7 @@ fn intersection_check_receiver_non_looping(
     time_entry: u32,
     time_exit: u32,
     radius: f64,
-) -> Option<(u32, Vector3<f64>)> {
+) -> Option<(f64, Vector3<f64>)> {
     for pair in keyframes.windows(2) {
         if pair[1].time < time_entry {
             continue;
@@ -440,7 +441,7 @@ fn intersection_check_receiver_looping(
     time_exit: u32,
     radius: f64,
     loop_duration: u32,
-) -> Option<(u32, Vector3<f64>)> {
+) -> Option<(f64, Vector3<f64>)> {
     let mut current_time = time_entry - (time_entry % loop_duration);
 
     while current_time <= time_exit {
@@ -492,7 +493,7 @@ fn intersection_check_receiver_keyframes(
     time_entry: u32,
     time_exit: u32,
     loop_offset: u32,
-) -> Option<(u32, Vector3<f64>)> {
+) -> Option<(f64, Vector3<f64>)> {
     let (d2, d1, d0) =
         receiver_polynomial_parameters(ray, keyframe_first, keyframe_second, radius, loop_offset);
     let intersections = roots::find_roots_quadratic(d2, d1, d0);
@@ -514,7 +515,7 @@ fn intersection_check_receiver_keyframes(
 
     let ray_coords = ray.coords_at_time(intersection_time);
 
-    Some((intersection_time.round() as u32, ray_coords))
+    Some((intersection_time, ray_coords))
 }
 
 /// Calculate the sphere intersection polynomial parameters (called `d_0` through `d_2` in the thesis).
@@ -591,7 +592,7 @@ fn intersection_check_receiver_coordinates(
     radius: f64,
     time_entry: u32,
     time_exit: u32,
-) -> Option<(u32, Vector3<f64>)> {
+) -> Option<(f64, Vector3<f64>)> {
     let origin_to_coords = coords - ray.origin;
     let time_origin_to_angle = origin_to_coords.dot(&(ray.direction.into_inner()));
     if time_origin_to_angle < 0f64 {
@@ -624,5 +625,5 @@ fn intersection_check_receiver_coordinates(
 
     let ray_coords = ray.coords_at_time(intersection_time);
 
-    Some((intersection_time.round() as u32, ray_coords))
+    Some((intersection_time, ray_coords))
 }

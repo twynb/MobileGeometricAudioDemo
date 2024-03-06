@@ -65,11 +65,8 @@ pub fn rotating_l(
     rotation_duration: u32,
     material: Material,
 ) -> Vec<Surface<3>> {
-    let keyframes = rotate(
-        &l_polygons(bottom_left, length_1, length_2, width_1, width_2, height),
-        rotation_origin,
-        rotation_duration,
-    );
+    let polygons = l_polygons(bottom_left, length_1, length_2, width_1, width_2, height);
+    let keyframes = rotate(&polygons, rotation_origin, rotation_duration);
     keyframes
         .iter()
         .map(|keys| Surface::Keyframes(keys.clone(), SurfaceData::new(material)))
@@ -203,12 +200,12 @@ fn l_polygons(
         wall_top(3, 4),
         wall_bottom(4, 5),
         wall_top(4, 5),
-        wall_bottom(5, 1),
-        wall_top(5, 1),
+        wall_bottom(5, 0),
+        wall_top(5, 0),
         [floor_points[0], floor_points[1], floor_points[2]],
-        [floor_points[3], floor_points[1], floor_points[2]],
+        [floor_points[3], floor_points[0], floor_points[2]],
         [floor_points[4], floor_points[5], floor_points[6]],
-        [floor_points[7], floor_points[5], floor_points[6]],
+        [floor_points[7], floor_points[4], floor_points[6]],
         [
             floor_points[0] + to_top,
             floor_points[1] + to_top,
@@ -216,7 +213,7 @@ fn l_polygons(
         ],
         [
             floor_points[3] + to_top,
-            floor_points[1] + to_top,
+            floor_points[0] + to_top,
             floor_points[2] + to_top,
         ],
         [
@@ -226,7 +223,7 @@ fn l_polygons(
         ],
         [
             floor_points[7] + to_top,
-            floor_points[5] + to_top,
+            floor_points[4] + to_top,
             floor_points[6] + to_top,
         ],
     ]
@@ -617,8 +614,8 @@ pub fn rotating_l_scene(sample_rate: u32) -> Scene {
     SceneBuilder::new()
         .with_rotating_l(
             (-1f64, -1f64, -1f64),
-            5f64,
-            3f64,
+            10f64,
+            6f64,
             2f64,
             2f64,
             2f64,
@@ -626,7 +623,7 @@ pub fn rotating_l_scene(sample_rate: u32) -> Scene {
             sample_rate,
             MATERIAL_CONCRETE_WALL,
         )
-        .with_emitter_at(0f64, 0f64, 1.2f64)
+        .with_emitter_at(0f64, 0f64, 0.5f64)
         .looping(sample_rate)
         .build()
 }

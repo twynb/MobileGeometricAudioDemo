@@ -1,4 +1,4 @@
-use approx::assert_abs_diff_eq;
+use approx::{abs_diff_eq, assert_abs_diff_eq};
 use demo::intersection::{intersect_ray_and_receiver, intersect_ray_and_surface};
 use demo::materials::MATERIAL_CONCRETE_WALL;
 use demo::ray::{Ray, DEFAULT_PROPAGATION_SPEED};
@@ -7,8 +7,8 @@ use demo::DEFAULT_SAMPLE_RATE;
 use nalgebra::{Unit, Vector3};
 
 fn assert_intersection_equals(
-    expected: Option<(u32, Vector3<f64>)>,
-    result: Option<(u32, Vector3<f64>)>,
+    expected: Option<(f64, Vector3<f64>)>,
+    result: Option<(f64, Vector3<f64>)>,
 ) {
     match expected {
         None => assert!(
@@ -21,10 +21,9 @@ fn assert_intersection_equals(
                 "Result is None where it should have been Some. Expected: {expected:?}"
             );
             let result = result.unwrap();
-            assert_eq!(
-                time, result.0,
-                "Time between Result and Expected doesn't match"
-            );
+            if !abs_diff_eq!(time, result.0, epsilon = 0.01) {
+                assert!(false, "Times between expected and result don't match! Expected: {expected:?}, Result: {result:?}")
+            };
             for idx in 0..3 {
                 assert_abs_diff_eq!(coords[idx], result.1[idx], epsilon = 0.01)
             }
@@ -109,7 +108,7 @@ fn clearly_hit_static_receiver() {
     );
 
     assert_intersection_equals(
-        Some((11, Vector3::new(9.95549, 9.910981, 1.0089018f64))),
+        Some((11.125f64, Vector3::new(9.95549, 9.910981, 1.0089018f64))),
         intersect_ray_and_receiver(&hitting_ray, &receiver, 0, 100, None),
     );
 }
@@ -127,7 +126,7 @@ fn clearly_hit_static_receiver_velocity_not_1() {
     );
 
     assert_intersection_equals(
-        Some((27, Vector3::new(9.95549, 9.910981, 1.0089018f64))),
+        Some((27.25f64, Vector3::new(9.95549, 9.910981, 1.0089018f64))),
         intersect_ray_and_receiver(&hitting_ray, &receiver, 0, 100, None),
     );
 }
@@ -146,7 +145,7 @@ fn clearly_hit_distant_static_receiver() {
 
     assert_intersection_equals(
         Some((
-            (1373.1 * DEFAULT_SAMPLE_RATE / DEFAULT_PROPAGATION_SPEED).round() as u32,
+            (1373.1 * DEFAULT_SAMPLE_RATE / DEFAULT_PROPAGATION_SPEED),
             Vector3::new(1373.1, 0f64, 0f64),
         )),
         intersect_ray_and_receiver(&hitting_ray, &receiver, 0, 300000, None),
@@ -184,7 +183,7 @@ fn narrowly_hit_static_receiver() {
     );
 
     assert_intersection_equals(
-        Some((10, Vector3::new(10.1f64, 10f64, 1f64))),
+        Some((10.05f64, Vector3::new(10.1f64, 10f64, 1f64))),
         intersect_ray_and_receiver(&narrowly_hitting_ray, &receiver, 0, 100, None),
     );
 }
@@ -250,7 +249,7 @@ fn hit_receiver_moving_towards_ray() {
     );
 
     assert_intersection_equals(
-        Some((10, Vector3::new(-4.93, 0.0, 0.0))),
+        Some((9.933f64, Vector3::new(-4.93, 0.0, 0.0))),
         intersect_ray_and_receiver(&hitting_ray, &receiver_moving_towards_ray, 0, 100, None),
     );
 }
@@ -280,7 +279,7 @@ fn hit_receiver_moving_towards_ray_after_later_start() {
     );
 
     assert_intersection_equals(
-        Some((39690, Vector3::new(308.87, 0.0, 0.0))),
+        Some((39689.74f64, Vector3::new(308.87, 0.0, 0.0))),
         intersect_ray_and_receiver(&hitting_ray, &receiver_moving_towards_ray, 0, 100000, None),
     );
 }
@@ -298,7 +297,7 @@ fn narrowly_hit_moving_receiver() {
     );
 
     assert_intersection_equals(
-        Some((10, Vector3::new(10.1f64, 10f64, 1f64))),
+        Some((10f64, Vector3::new(10.1f64, 10f64, 1f64))),
         intersect_ray_and_receiver(&narrowly_hitting_ray, &receiver, 0, 100, None),
     );
 }
@@ -368,7 +367,7 @@ fn hit_moving_receiver_after_movement_finished() {
     );
 
     assert_intersection_equals(
-        Some((34, Vector3::new(19.93f64, -0.07f64, 1f64))),
+        Some((34.042f64, Vector3::new(19.93f64, -0.07f64, 1f64))),
         intersect_ray_and_receiver(&late_hitting_ray, &receiver, 0, 100, None),
     );
 }
@@ -386,7 +385,7 @@ fn clearly_hit_static_surface() {
     );
 
     assert_intersection_equals(
-        Some((7, Vector3::new(5f64, 3f64, 2f64))),
+        Some((7f64, Vector3::new(5f64, 3f64, 2f64))),
         intersect_ray_and_surface(&hitting_ray, &surface, 0, 100, None, 0),
     );
 }
@@ -421,7 +420,7 @@ fn narrowly_hit_static_surface() {
     );
 
     assert_intersection_equals(
-        Some((3, Vector3::new(0f64, 3f64, 0f64))),
+        Some((3f64, Vector3::new(0f64, 3f64, 0f64))),
         intersect_ray_and_surface(&narrowly_hitting_ray, &surface, 0, 100, None, 0),
     );
 }
@@ -475,7 +474,7 @@ fn clearly_hit_moving_surface() {
     );
 
     assert_intersection_equals(
-        Some((10, Vector3::new(1f64, 3f64, 2f64))),
+        Some((10f64, Vector3::new(1f64, 3f64, 2f64))),
         intersect_ray_and_surface(&hitting_ray, &surface, 0, 100, None, 0),
     );
 }
@@ -511,7 +510,7 @@ fn hit_moving_surface_with_ray_starting_late() {
     );
 
     assert_intersection_equals(
-        Some((10, Vector3::new(1f64, 3f64, 2f64))),
+        Some((10f64, Vector3::new(1f64, 3f64, 2f64))),
         intersect_ray_and_surface(&hitting_ray_with_later_start, &surface, 0, 100, None, 0),
     );
 }
