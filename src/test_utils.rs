@@ -14,13 +14,6 @@ pub fn unordered_eq_without_duplicates<T: Eq + Hash>(a: &[T], b: &[T]) -> bool {
     a == b
 }
 
-/// Assert that the given two unordered collections of items are equal.
-/// This ignores duplicates within the collections!
-#[cfg(test)]
-pub fn assert_unordered_eq_ignoring_duplicates<T: Eq + Hash>(a: &[T], b: &[T]) {
-    assert!(unordered_eq_without_duplicates(a, b));
-}
-
 /// Check whether two Vector3 are approximately equal.
 #[cfg(test)]
 pub fn vector_abs_diff_eq(a: Vector3<f64>, b: Vector3<f64>) -> bool {
