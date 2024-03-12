@@ -23,6 +23,10 @@ pub fn to_impulse_response(results: &[(f64, u32)], number_of_rays: u32) -> Vec<f
 /// Internal logic to apply a set of impulse responses to a set of `data` points.
 /// This assumes that there are at least as many `impulse_response` entries as there are `data` points.
 /// Each data point has the impulse response at the same time applied to it.
+/// 
+/// # Panics
+/// 
+/// * If `T` can't be cast to f64 or vice versa
 pub fn apply_to_data<T: num::Num + num::NumCast + Clone + Copy>(
     impulse_response: &[Vec<f64>],
     data: &[T],

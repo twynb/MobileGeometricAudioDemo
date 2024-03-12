@@ -52,6 +52,6 @@ pub fn random_direction_in_hemisphere(normal: &Vector3<f64>) -> Vector3<f64> {
 /// Bounce the direction vector off a surface described by the given normal.
 /// Assumes that both the direction and normal are unit vectors.
 #[allow(clippy::module_name_repetitions)]
-pub fn bounce_off_surface_with_normal(direction: &mut Vector3<f64>, normal: &Vector3<f64>) {
-    *direction -= 2f64 * (direction.dot(normal)) * normal;
+pub fn bounce_off_surface_with_normal(direction: Vector3<f64>, normal: &Vector3<f64>) -> Vector3<f64> {
+    direction - 2f64 * (direction.dot(normal)) * normal
 }

@@ -197,14 +197,12 @@ impl Ray {
         let material = surface_data.material;
 
         let normal = surface.normal();
-        let mut new_direction = self.direction.into_inner();
 
-        if material.is_bounce_diffuse() {
-            // new_direction doesn't have to be a unit vector yet, we'll normalise it later
-            new_direction = random_direction_in_hemisphere(&normal);
+        let new_direction = if material.is_bounce_diffuse() {
+            random_direction_in_hemisphere(&normal)
         } else {
-            bounce_off_surface_with_normal(&mut new_direction, &normal);
-        }
+            bounce_off_surface_with_normal(self.direction.into_inner(), &normal)
+        };
 
         self.time = time;
         self.origin = coords;

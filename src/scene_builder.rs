@@ -54,6 +54,7 @@ pub fn static_l(
 }
 
 /// Create a rotating L primitive described by the given coordinates and material.
+#[allow(clippy::too_many_arguments)]
 pub fn rotating_l(
     bottom_left: Vector3<f64>,
     length_1: f64,
@@ -294,10 +295,10 @@ enum Object {
 impl Object {
     fn build(&self) -> Vec<Surface<3>> {
         match self {
-            Object::StaticCube(bottom_left, top_right, material) => {
+            Self::StaticCube(bottom_left, top_right, material) => {
                 static_cube(*bottom_left, *top_right, *material)
             }
-            Object::RotatingCube(
+            Self::RotatingCube(
                 bottom_left,
                 top_right,
                 rotation_origin,
@@ -310,7 +311,7 @@ impl Object {
                 *rotation_duration,
                 *material,
             ),
-            Object::StaticL(
+            Self::StaticL(
                 bottom_left,
                 length_1,
                 length_2,
@@ -327,7 +328,7 @@ impl Object {
                 *height,
                 *material,
             ),
-            Object::RotatingL(
+            Self::RotatingL(
                 bottom_left,
                 length_1,
                 length_2,

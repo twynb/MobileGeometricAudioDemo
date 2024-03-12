@@ -13,6 +13,7 @@ use demo::{ray::DEFAULT_PROPAGATION_SPEED, scene::SceneData, scene_builder};
 const DEFAULT_NUMBER_OF_RAYS: u32 = 100000;
 const DEFAULT_SCALING_FACTOR: f64 = 10000f64;
 
+#[allow(clippy::too_many_lines)]
 fn main() {
     // std::env::set_var("RUST_BACKTRACE", "1");
     let args: Vec<String> = std::env::args().collect();
@@ -54,16 +55,17 @@ fn main() {
         .unwrap_or_else(|_| panic!("Input file couldn't be opened!"));
     let (header, input_data) = wav::read(&mut input_file)
         .unwrap_or_else(|_| panic!("An error occurred while parsing the input file!"));
-    let mut input_sound_len: usize = match &input_data {
-        wav::BitDepth::Eight(data) => data.len(),
-        wav::BitDepth::Sixteen(data) => data.len(),
-        wav::BitDepth::TwentyFour(data) => data.len(),
-        wav::BitDepth::ThirtyTwoFloat(data) => data.len(),
-        wav::BitDepth::Empty => panic!("Input file did not contain any data!"),
+    let input_sound_len: usize = if single_ir {
+        1
+    } else {
+        match &input_data {
+            wav::BitDepth::Eight(data) => data.len(),
+            wav::BitDepth::Sixteen(data) => data.len(),
+            wav::BitDepth::TwentyFour(data) => data.len(),
+            wav::BitDepth::ThirtyTwoFloat(data) => data.len(),
+            wav::BitDepth::Empty => panic!("Input file did not contain any data!"),
+        }
     };
-    if single_ir  {
-        input_sound_len = 1;
-    }
 
     let Some(scene_index) = scene_index else {
         println!("Please provide a valid scene index using \"--scene=INDEX\"! The following scene indices are supported:");

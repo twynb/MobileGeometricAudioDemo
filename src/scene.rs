@@ -61,7 +61,7 @@ pub struct SurfaceData {
 }
 
 impl SurfaceData {
-    pub fn new(material: Material) -> Self {
+    pub const fn new(material: Material) -> Self {
         Self { material }
     }
 }
@@ -281,6 +281,8 @@ where
         impulse_response::apply_to_many_samples(&impulse_response, data, scaling_factor)
     }
 
+    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::option_if_let_else)]
     fn simulate_for_time_span_multiple_irs<
         T: Num + NumCast + Bounded + Copy + Clone + Sync + Send,
     >(

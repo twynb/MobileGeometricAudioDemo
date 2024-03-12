@@ -189,7 +189,7 @@ fn surface_polynomial_parameters(
     let second_time = f64::from(keyframe_second.time + loop_offset); // t_k_2
     let (g2, g1, g0) =
         surface_cross_product_parameters(keyframe_first, keyframe_second, second_time);
-    let ray_time = f64::from(ray.time); // t_0
+    let ray_time = ray.time; // t_0
     let velocity = ray.velocity * ray.direction.into_inner();
     let delta_time = f64::from(keyframe_second.time - keyframe_first.time);
     let delta_point_1 = keyframe_second.coords[0] - keyframe_first.coords[0];
@@ -324,7 +324,7 @@ fn intersection_check_surface_coordinates(
     }
     let intersection_time = -(ray.origin - coords[0]).dot(&normal)
         / (ray.velocity * direction_dot_normal)
-        + f64::from(ray.time);
+        + ray.time;
     if (intersection_time.trunc() as u32) < time_entry
         || intersection_time.ceil() as u32 > time_exit
     {
@@ -504,7 +504,7 @@ fn receiver_polynomial_parameters(
     loop_offset: u32,
 ) -> (f64, f64, f64) {
     let p_minus_ck2 = ray.origin - keyframe_second.coords;
-    let ray_time = f64::from(ray.time);
+    let ray_time = ray.time;
     let velocity = ray.velocity * ray.direction.into_inner();
     let delta_time = f64::from(keyframe_second.time - keyframe_first.time);
     let delta_time_squared = delta_time.powi(2);
@@ -592,7 +592,7 @@ fn intersection_check_receiver_coordinates(
         .abs()
         .sqrt();
     let intersection_time =
-        (time_origin_to_angle - time_angle_to_result) / ray.velocity + f64::from(ray.time);
+        (time_origin_to_angle - time_angle_to_result) / ray.velocity + ray.time;
 
     if (intersection_time.trunc() as u32) < time_entry
         || intersection_time.ceil() as u32 > time_exit
