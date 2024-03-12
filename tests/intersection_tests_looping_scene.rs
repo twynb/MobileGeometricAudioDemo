@@ -392,7 +392,7 @@ fn clearly_hit_static_surface() {
 
     assert_intersection_equals(
         Some((7f64, Vector3::new(5f64, 3f64, 2f64))),
-        intersect_ray_and_surface(&hitting_ray, &surface, 0, 100, Some(100), 0),
+        intersect_ray_and_surface(&hitting_ray, &surface, 0, 100, Some(100)),
     );
 }
 #[test]
@@ -409,7 +409,7 @@ fn miss_static_surface_because_time() {
 
     assert_intersection_equals(
         None,
-        intersect_ray_and_surface(&hitting_ray, &surface, 1, 5, Some(120), 0),
+        intersect_ray_and_surface(&hitting_ray, &surface, 1, 5, Some(120)),
     );
 }
 
@@ -427,7 +427,7 @@ fn narrowly_hit_static_surface() {
 
     assert_intersection_equals(
         Some((3f64, Vector3::new(0f64, 3f64, 0f64))),
-        intersect_ray_and_surface(&narrowly_hitting_ray, &surface, 0, 100, Some(400), 0),
+        intersect_ray_and_surface(&narrowly_hitting_ray, &surface, 0, 100, Some(400)),
     );
 }
 
@@ -445,7 +445,7 @@ fn narrowly_miss_static_surface() {
 
     assert_intersection_equals(
         None,
-        intersect_ray_and_surface(&narrowly_missing_ray, &surface, 0, 100, Some(500), 0),
+        intersect_ray_and_surface(&narrowly_missing_ray, &surface, 0, 100, Some(500)),
     );
 }
 
@@ -463,7 +463,7 @@ fn clearly_miss_static_surface() {
 
     assert_intersection_equals(
         None,
-        intersect_ray_and_surface(&missing_ray, &surface, 0, 100, Some(700), 0),
+        intersect_ray_and_surface(&missing_ray, &surface, 0, 100, Some(700)),
     )
 }
 
@@ -481,7 +481,7 @@ fn clearly_hit_moving_surface() {
 
     assert_intersection_equals(
         Some((10f64, Vector3::new(1f64, 3f64, 2f64))),
-        intersect_ray_and_surface(&hitting_ray, &surface, 0, 100, Some(20), 0),
+        intersect_ray_and_surface(&hitting_ray, &surface, 0, 100, Some(20)),
     );
 }
 
@@ -499,7 +499,7 @@ fn miss_moving_surface_because_time() {
 
     assert_intersection_equals(
         None,
-        intersect_ray_and_surface(&hitting_ray, &surface, 1, 5, Some(20), 0),
+        intersect_ray_and_surface(&hitting_ray, &surface, 1, 5, Some(20)),
     );
 }
 
@@ -517,7 +517,7 @@ fn hit_moving_surface_with_ray_starting_late() {
 
     assert_intersection_equals(
         Some((10f64, Vector3::new(1f64, 3f64, 2f64))),
-        intersect_ray_and_surface(&hitting_ray_with_later_start, &surface, 0, 100, Some(20), 0),
+        intersect_ray_and_surface(&hitting_ray_with_later_start, &surface, 0, 100, Some(20)),
     );
 }
 
@@ -535,7 +535,7 @@ fn narrowly_miss_moving_surface() {
 
     assert_intersection_equals(
         None,
-        intersect_ray_and_surface(&narrowly_missing_ray, &surface, 0, 100, Some(20), 0),
+        intersect_ray_and_surface(&narrowly_missing_ray, &surface, 0, 100, Some(20)),
     );
 }
 
@@ -553,7 +553,7 @@ fn clearly_miss_moving_surface() {
 
     assert_intersection_equals(
         None,
-        intersect_ray_and_surface(&clearly_missing_ray, &surface, 0, 100, Some(20), 0),
+        intersect_ray_and_surface(&clearly_missing_ray, &surface, 0, 100, Some(20)),
     );
 }
 

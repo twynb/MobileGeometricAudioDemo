@@ -21,16 +21,11 @@ pub fn intersect_ray_and_surface(
     time_entry: u32,
     time_exit: u32,
     scene_looping_duration: Option<u32>,
-    surface_index: usize,
 ) -> Option<(f64, Vector3<f64>)> {
     match surface {
-        Surface::Interpolated(coords, _time, _material) => intersection_check_surface_coordinates(
-            ray,
-            coords,
-            time_entry,
-            time_exit,
-            surface_index,
-        ),
+        Surface::Interpolated(coords, _time, _material) => {
+            intersection_check_surface_coordinates(ray, coords, time_entry, time_exit)
+        }
         Surface::Keyframes(keyframes, _material) => match scene_looping_duration {
             Some(loop_duration) => intersection_check_surface_looping(
                 ray,
@@ -38,15 +33,8 @@ pub fn intersect_ray_and_surface(
                 time_entry,
                 time_exit,
                 loop_duration,
-                surface_index,
             ),
-            None => intersection_check_surface_non_looping(
-                ray,
-                keyframes,
-                time_entry,
-                time_exit,
-                surface_index,
-            ),
+            None => intersection_check_surface_non_looping(ray, keyframes, time_entry, time_exit),
         },
     }
 }
@@ -56,7 +44,6 @@ fn intersection_check_surface_non_looping(
     keyframes: &[SurfaceKeyframe<3>],
     time_entry: u32,
     time_exit: u32,
-    surface_index: usize,
 ) -> Option<(f64, Vector3<f64>)> {
     for pair in keyframes.windows(2) {
         if pair[1].time < time_entry {
@@ -72,7 +59,6 @@ fn intersection_check_surface_non_looping(
             std::cmp::max(time_entry, pair[0].time),
             std::cmp::min(time_exit, pair[1].time),
             0,
-            surface_index,
         ) {
             return Some((time, coords));
         }
@@ -84,7 +70,6 @@ fn intersection_check_surface_non_looping(
         &final_keyframe.coords,
         final_keyframe.time,
         time_exit,
-        surface_index,
     )
 }
 
@@ -94,7 +79,6 @@ fn intersection_check_surface_looping(
     time_entry: u32,
     time_exit: u32,
     loop_duration: u32,
-    surface_index: usize,
 ) -> Option<(f64, Vector3<f64>)> {
     // round start time to last looping time
     let mut current_time = time_entry - (time_entry % loop_duration);
@@ -113,7 +97,6 @@ fn intersection_check_surface_looping(
                 std::cmp::max(time_entry, current_time + pair[0].time),
                 std::cmp::min(time_exit, current_time + pair[1].time),
                 current_time,
-                surface_index,
             ) {
                 return Some((time, coords));
             }
@@ -126,7 +109,6 @@ fn intersection_check_surface_looping(
                 &final_keyframe.coords,
                 current_time + final_keyframe.time,
                 current_time + loop_duration,
-                surface_index,
             ) {
                 return Some((time, coords));
             }
@@ -146,7 +128,6 @@ fn intersection_check_surface_keyframes(
     time_entry: u32,
     time_exit: u32,
     loop_offset: u32,
-    surface_index: usize,
 ) -> Option<(f64, Vector3<f64>)> {
     let (d3, d2, d1, d0) =
         surface_polynomial_parameters(ray, keyframe_first, keyframe_second, loop_offset);
@@ -167,14 +148,6 @@ fn intersection_check_surface_keyframes(
             continue;
         }
 
-        if let Some(last_index) = ray.last_intersected_surface {
-            if last_index == surface_index && intersection_time - ray.time as f64 <= 0.4 {
-                // skip the last surface we bounced off of
-                // if we bounce off it immediately again
-                continue;
-            }
-        }
-
         if match intersection {
             Some((time, _coords)) => time > *intersection_time,
             None => true,
@@ -186,6 +159,14 @@ fn intersection_check_surface_keyframes(
             ) else {
                 continue;
             };
+
+            let normal = (surface_coords[2] - surface_coords[0])
+                .cross(&(surface_coords[1] - surface_coords[0]));
+
+            if normal.dot(&ray.direction) > 0f64 {
+                // we are behind the surface, so just skip
+                continue;
+            }
 
             let ray_coords = ray.coords_at_time(*intersection_time);
 
@@ -335,7 +316,6 @@ fn intersection_check_surface_coordinates(
     coords: &[Vector3<f64>; 3],
     time_entry: u32,
     time_exit: u32,
-    surface_index: usize,
 ) -> Option<(f64, Vector3<f64>)> {
     let normal = (coords[1] - coords[0]).cross(&(coords[2] - coords[0]));
     let direction_dot_normal = ray.direction.into_inner().dot(&normal);
@@ -351,12 +331,9 @@ fn intersection_check_surface_coordinates(
         return None;
     }
 
-    if let Some(last_index) = ray.last_intersected_surface {
-        if last_index == surface_index && intersection_time - ray.time <= 1f64 {
-            // skip the last surface we bounced off of
-            // if we bounce off it immediately again
-            return None;
-        }
+    let normal = (coords[2] - coords[0]).cross(&(coords[1] - coords[0]));
+    if normal.dot(&ray.direction) > 0f64 {
+        return None;
     }
 
     let ray_coords = ray.coords_at_time(intersection_time);

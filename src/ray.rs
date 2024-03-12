@@ -9,7 +9,7 @@ use typenum::Unsigned;
 use crate::{
     bounce::{bounce_off_surface_with_normal, random_direction_in_hemisphere},
     interpolation::Interpolation,
-    intersection, maths,
+    intersection,
     scene::{SceneData, Surface},
     DEFAULT_SAMPLE_RATE,
 };
@@ -63,8 +63,6 @@ pub struct Ray {
     /// The velocity at which the ray moves, in meters per sample.
     /// This should usually be ``crate::ray::DEFAULT_PROPAGATION_SPEED`` / ``crate::DEFAULT_SAMPLE_RATE``.
     pub velocity: f64,
-    /// The last surface this ray has intersected with, to avoid repeatedly bouncing off the same surface.
-    pub last_intersected_surface: Option<usize>,
 }
 
 impl Ray {
@@ -83,7 +81,6 @@ impl Ray {
             energy,
             time: <f64 as From<u32>>::from(time),
             velocity,
-            last_intersected_surface: None,
         }
     }
 
@@ -160,8 +157,6 @@ impl Ray {
                         // do not change direction because we pass through receivers
                         result.push((self.energy, time.round() as u32));
                         allow_receiver = false;
-                        self.origin = coords;
-                        self.last_intersected_surface = None;
                     } else {
                         allow_receiver = true;
                         self.bounce_from_intersection(scene_data, time, coords, index);
@@ -201,15 +196,9 @@ impl Ray {
         };
         let material = surface_data.material;
 
-        let mut normal = surface.normal();
+        let normal = surface.normal();
         let mut new_direction = self.direction.into_inner();
-        // we don't know which direction the normal is facing from the surface
-        // but need it to be towards the ray's origin
-        // so if the previous direction and the normal are in the same general direction,
-        // we need to invert the normal to go in the correct direction
-        if normal.dot(&new_direction) > 0f64 {
-            normal *= -1f64;
-        }
+
         if material.is_bounce_diffuse() {
             // new_direction doesn't have to be a unit vector yet, we'll normalise it later
             new_direction = random_direction_in_hemisphere(&normal);
@@ -221,7 +210,6 @@ impl Ray {
         self.origin = coords;
         self.direction = Unit::new_normalize(new_direction);
         self.energy *= material.absorption_coefficient;
-        self.last_intersected_surface = Some(index);
     }
 
     /// Traverse through a scene chunk by chunk.
@@ -310,10 +298,6 @@ impl Ray {
         <C as Mul>::Output: Mul<C>,
         <<C as Mul>::Output as Mul<C>>::Output: ArrayLength,
     {
-        // hack to prevent panicking in case the bound calculation has errors
-        if *key > max_chunk_key::<C>() {
-            return IntersectionCheckResult::OutOfBounds;
-        }
         let intersection = self.intersection_check_in_chunk(
             *key as u32,
             *last_time,
@@ -429,7 +413,6 @@ impl Ray {
                 time_entry,
                 time_exit,
                 scene_data.scene.loop_duration,
-                *surface_index,
             ) else {
                 // skip surfaces we don't intersect with
                 continue;
@@ -534,38 +517,50 @@ fn init_chunk_traversal_data_dimension(
             bound: 0f64,
         }
     } else if direction_cosine > 0f64 {
-        let delta_direction = chunk_width / direction_cosine;
-        let delta_time: f64 = delta_direction / velocity;
+        let delta_position = chunk_width / direction_cosine;
+        let delta_time: f64 = delta_position / velocity;
+        let position = (chunk_start + chunk_width - origin_position) / chunk_width * delta_position;
+        let bound = if position > delta_position / 2f64 {
+            // if we're in the second half of the chunk, we'd rather the border be slightly into the OOB chunk
+            // to reduce the risk of rounding errors when we're near the end of the chunk each time
+            (<f64 as From<u32>>::from(num_chunks - chunk_index) + 0.1) * delta_position
+        } else {
+            // if we're in the first half of the chunk, we'd rather the border be slightly into the last chunk
+            // to reduce the risk of rounding errors when we're near the beginning of the chunk each time
+            (<f64 as From<u32>>::from(num_chunks - chunk_index) - 0.1f64) * delta_position
+        };
         ChunkTraversalDataDimension {
-            position: (chunk_start + chunk_width - origin_position) / chunk_width * delta_direction,
-            delta_position: delta_direction,
+            position,
+            delta_position,
             key_increment,
             time: ((chunk_start + chunk_width - origin_position) / chunk_width)
                 .mul_add(delta_time, <f64 as From<u32>>::from(start_time)),
             delta_time,
-            // truncate bound because it doesn't need to be that specific, & float rounding issues in the bound can lead to OOB issues
-            // we'd rather have it be a bit too small (=> nothing changes) than a bit too large (=> we don't return out where we should)
-            bound: maths::trunc_to_n_significant_digits(
-                <f64 as From<u32>>::from(num_chunks - chunk_index) * delta_direction,
-                10,
-            ),
+            bound,
         }
     } else {
-        let delta_direction = -chunk_width / direction_cosine;
-        let delta_time: f64 = delta_direction / velocity;
+        let delta_position = -chunk_width / direction_cosine;
+        let delta_time: f64 = delta_position / velocity;
+        let position = (origin_position - chunk_start) / chunk_width * delta_position;
+        let bound = if position > delta_position / 2f64 {
+            // if we're in the second half of the chunk, we'd rather the border be slightly into the OOB chunk
+            // to reduce the risk of rounding errors when we're near the end of the chunk each time
+            (<f64 as From<u32>>::from(chunk_index) + 1.1) * delta_position
+        } else {
+            // if we're in the first half of the chunk, we'd rather the border be slightly into the last chunk
+            // to reduce the risk of rounding errors when we're near the beginning of the chunk each time
+            (<f64 as From<u32>>::from(chunk_index) + 0.9f64) * delta_position
+        };
         ChunkTraversalDataDimension {
-            position: (origin_position - chunk_start) / chunk_width * delta_direction,
-            delta_position: delta_direction,
+            position,
+            delta_position,
             key_increment: -key_increment,
             time: ((origin_position - chunk_start) / chunk_width)
                 .mul_add(delta_time, <f64 as From<u32>>::from(start_time)),
             delta_time,
             // truncate bound because it doesn't need to be that specific, & float rounding issues in the bound can lead to OOB issues
             // we'd rather have it be a bit too small (=> nothing changes) than a bit too large (=> we don't return out where we should)
-            bound: maths::trunc_to_n_significant_digits(
-                <f64 as From<u32>>::from(chunk_index + 1) * delta_direction,
-                10,
-            ),
+            bound,
         }
     }
 }
@@ -578,7 +573,6 @@ impl Default for Ray {
             energy: 1f64,
             time: 0f64,
             velocity: DEFAULT_PROPAGATION_SPEED / DEFAULT_SAMPLE_RATE,
-            last_intersected_surface: None,
         }
     }
 }
@@ -602,18 +596,4 @@ struct ChunkTraversalDataDimension {
     time: f64,
     delta_time: f64,
     bound: f64,
-}
-
-// The maximum chunk key for C.
-fn max_chunk_key<C: typenum::Unsigned>() -> i32 {
-    (C::to_i32() - 1) * C::to_i32() * C::to_i32() + (C::to_i32() - 1) * C::to_i32() + C::to_i32()
-        - 1
-    /*
-    // maybe tinker more here, for now we take the performance hit from doing the above
-    type first<C> = <C as Sub<typenum::U1>>::Output;
-    type second<C> = <first<C> as Mul<C>>::Output;
-    type third<C> =  <second<C> as Mul<C>>::Output;
-    type result<C> = <<third<C> as Add<second<C>>>::Output as Add<first<C>>>::Output;
-    result::<C>::to_i32()
-    */
 }

@@ -84,8 +84,8 @@ fn cube_polygons(bottom_left: Vector3<f64>, top_right: Vector3<f64>) -> [[Vector
         ],
         [
             Vector3::new(bottom_left.x, top_right.y, top_right.z),
-            Vector3::new(bottom_left.x, bottom_left.y, top_right.z),
             Vector3::new(bottom_left.x, top_right.y, bottom_left.z),
+            Vector3::new(bottom_left.x, bottom_left.y, top_right.z),
         ],
         // front
         [
@@ -95,14 +95,14 @@ fn cube_polygons(bottom_left: Vector3<f64>, top_right: Vector3<f64>) -> [[Vector
         ],
         [
             Vector3::new(top_right.x, bottom_left.y, top_right.z),
-            Vector3::new(top_right.x, bottom_left.y, bottom_left.z),
             Vector3::new(bottom_left.x, bottom_left.y, top_right.z),
+            Vector3::new(top_right.x, bottom_left.y, bottom_left.z),
         ],
         // right
         [
             Vector3::new(top_right.x, bottom_left.y, bottom_left.z),
-            Vector3::new(top_right.x, bottom_left.y, top_right.z),
             Vector3::new(top_right.x, top_right.y, bottom_left.z),
+            Vector3::new(top_right.x, bottom_left.y, top_right.z),
         ],
         [
             Vector3::new(top_right.x, top_right.y, top_right.z),
@@ -112,8 +112,8 @@ fn cube_polygons(bottom_left: Vector3<f64>, top_right: Vector3<f64>) -> [[Vector
         // back
         [
             Vector3::new(bottom_left.x, top_right.y, bottom_left.z),
-            Vector3::new(top_right.x, top_right.y, bottom_left.z),
             Vector3::new(bottom_left.x, top_right.y, top_right.z),
+            Vector3::new(top_right.x, top_right.y, bottom_left.z),
         ],
         [
             Vector3::new(top_right.x, top_right.y, top_right.z),
@@ -123,8 +123,8 @@ fn cube_polygons(bottom_left: Vector3<f64>, top_right: Vector3<f64>) -> [[Vector
         // bottom
         [
             Vector3::new(bottom_left.x, bottom_left.y, bottom_left.z),
-            Vector3::new(top_right.x, bottom_left.y, bottom_left.z),
             Vector3::new(bottom_left.x, top_right.y, bottom_left.z),
+            Vector3::new(top_right.x, bottom_left.y, bottom_left.z),
         ],
         [
             Vector3::new(top_right.x, top_right.y, bottom_left.z),
@@ -139,8 +139,8 @@ fn cube_polygons(bottom_left: Vector3<f64>, top_right: Vector3<f64>) -> [[Vector
         ],
         [
             Vector3::new(top_right.x, top_right.y, top_right.z),
-            Vector3::new(top_right.x, bottom_left.y, top_right.z),
             Vector3::new(bottom_left.x, top_right.y, top_right.z),
+            Vector3::new(top_right.x, bottom_left.y, top_right.z),
         ],
     ]
 }
@@ -178,12 +178,12 @@ fn l_polygons(
         ]
     };
     let floor_points = [
-        // first poly
+        // first square
         bottom_point,
         bottom_points[1],
         bottom_point + Vector3::new(length_1, width_1, 0f64),
         bottom_points[5],
-        // second poly
+        // second square
         bottom_points[2],
         bottom_points[3],
         bottom_points[4],
@@ -208,23 +208,23 @@ fn l_polygons(
         [floor_points[7], floor_points[4], floor_points[6]],
         [
             floor_points[0] + to_top,
-            floor_points[1] + to_top,
             floor_points[2] + to_top,
+            floor_points[1] + to_top,
         ],
         [
             floor_points[3] + to_top,
-            floor_points[0] + to_top,
             floor_points[2] + to_top,
+            floor_points[0] + to_top,
         ],
         [
             floor_points[4] + to_top,
-            floor_points[5] + to_top,
             floor_points[6] + to_top,
+            floor_points[5] + to_top,
         ],
         [
             floor_points[7] + to_top,
-            floor_points[4] + to_top,
             floor_points[6] + to_top,
+            floor_points[4] + to_top,
         ],
     ]
 }
@@ -620,11 +620,11 @@ pub fn rotating_l_scene(sample_rate: u32) -> Scene {
             2f64,
             2f64,
             (0f64, 0f64, 0f64),
-            sample_rate,
+            sample_rate * 3,
             MATERIAL_CONCRETE_WALL,
         )
         .with_emitter_at(0f64, 0f64, 0.5f64)
-        .looping(sample_rate)
+        .looping(sample_rate * 3)
         .build()
 }
 

@@ -84,8 +84,9 @@ impl<const N: usize> Surface<N> {
     pub fn normal(&self) -> Vector3<f64> {
         match self {
             Self::Interpolated(coords, _time, _material) => {
-                let cross = (coords[1] - coords[0]).cross(&(coords[2] - coords[0]));
-                cross / cross.norm()
+                let mut cross = (coords[2] - coords[0]).cross(&(coords[1] - coords[0]));
+                cross.normalize_mut();
+                cross
             }
             Self::Keyframes(_, _material) => {
                 panic!("Normals can only be calculated for interpolated surfaces!")
