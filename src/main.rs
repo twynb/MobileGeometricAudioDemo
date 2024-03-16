@@ -1,4 +1,5 @@
 use std::{
+    io::Write,
     sync::{
         atomic::{AtomicU32, Ordering},
         mpsc::{self, Sender, TryRecvError},
@@ -25,6 +26,7 @@ fn main() {
     let mut do_snapshot_method: bool = false;
     let mut single_ir: bool = false;
     let mut out_fname: &str = "result.wav";
+    let mut ir_fname: Option<&str> = None;
 
     for arg in args.iter().skip(1) {
         let arg_split: Vec<&str> = arg.split('=').collect();
@@ -44,6 +46,7 @@ fn main() {
             "--snapshot-method" => do_snapshot_method = true,
             "--single-ir" => single_ir = true,
             "--outfile" => out_fname = arg_split[1],
+            "--irfile" => ir_fname = Some(arg_split[1]),
             _ => panic!("Unknown argument {}", arg_split[0]),
         };
     }
@@ -104,7 +107,7 @@ fn main() {
 
     println!("Calculating and applying {input_sound_len} impulse responses with {number_of_rays} rays each, this will take a loooong while...");
     let time_start = Instant::now();
-    let result = scene_data.simulate_for_time_span(
+    let (result, impulse_response) = scene_data.simulate_for_time_span(
         &input_data,
         number_of_rays,
         DEFAULT_PROPAGATION_SPEED,
@@ -128,6 +131,18 @@ fn main() {
         .unwrap_or_else(|_| panic!("Output file couldn't be opened!"));
     wav::write(header, &result, &mut output_file)
         .unwrap_or_else(|_| panic!("Output file couldn't be written to!"));
+
+    match ir_fname {
+        Some(fname) => {
+            let mut ir_file = std::fs::File::create(std::path::Path::new(fname))
+                .unwrap_or_else(|_| panic!("IR Output file couldn't be opened!"));
+            for value in impulse_response {
+                write!(ir_file, "{value};")
+                    .unwrap_or_else(|_| panic!("Couldn't write impulse response!"));
+            }
+        }
+        None => (),
+    }
 }
 
 /// Print out all supported scene indices.

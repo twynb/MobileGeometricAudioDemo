@@ -1,8 +1,10 @@
+pub type ImpulseResponse = Vec<f64>;
+
 /// Convert a set of intersection events into an impulse response.
 /// Each event (described as a combination of the energy and time)
 /// is stored in the IR buffer at its relevant time.
 #[allow(clippy::module_name_repetitions)]
-pub fn to_impulse_response(results: &[(f64, u32)], number_of_rays: u32) -> Vec<f64> {
+pub fn to_impulse_response(results: &[(f64, u32)], number_of_rays: u32) -> ImpulseResponse {
     let buf_size = results
         .iter()
         .max_by_key(|result| result.1)
@@ -28,7 +30,7 @@ pub fn to_impulse_response(results: &[(f64, u32)], number_of_rays: u32) -> Vec<f
 /// 
 /// * If `T` can't be cast to f64 or vice versa
 pub fn apply_to_data<T: num::Num + num::NumCast + Clone + Copy>(
-    impulse_response: &[Vec<f64>],
+    impulse_response: &[ImpulseResponse],
     data: &[T],
 ) -> Vec<T> {
     let max_t60 = impulse_response

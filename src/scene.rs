@@ -17,7 +17,7 @@ use wav::BitDepth;
 use crate::{
     bounce::EmissionType,
     chunk::Chunks,
-    impulse_response::{self, to_impulse_response},
+    impulse_response::{self, to_impulse_response, ImpulseResponse},
     interpolation::Interpolation,
     materials::Material,
     ray::Ray,
@@ -155,8 +155,9 @@ where
         do_snapshot_method: bool,
         progress_counter: &Arc<AtomicU32>,
         single_ir: bool,
-    ) -> BitDepth {
-        match input_data {
+    ) -> (BitDepth, ImpulseResponse) {
+        let mut ir: ImpulseResponse = vec![];
+        let result = match input_data {
             BitDepth::Eight(data) => BitDepth::Eight(self.simulate_for_time_span_internal(
                 data,
                 number_of_rays,
@@ -166,6 +167,7 @@ where
                 do_snapshot_method,
                 progress_counter,
                 single_ir,
+                &mut ir
             )),
             BitDepth::Sixteen(data) => BitDepth::Sixteen(self.simulate_for_time_span_internal(
                 data,
@@ -176,6 +178,7 @@ where
                 do_snapshot_method,
                 progress_counter,
                 single_ir,
+                &mut ir
             )),
             BitDepth::TwentyFour(data) => {
                 BitDepth::TwentyFour(self.simulate_for_time_span_internal(
@@ -187,6 +190,7 @@ where
                     do_snapshot_method,
                     progress_counter,
                     single_ir,
+                &mut ir
                 ))
             }
             BitDepth::ThirtyTwoFloat(data) => {
@@ -199,10 +203,12 @@ where
                     do_snapshot_method,
                     progress_counter,
                     single_ir,
+                &mut ir
                 ))
             }
             BitDepth::Empty => BitDepth::Empty,
-        }
+        };
+        (result, ir)
     }
 
     /// Simulate the scene's impulse response for each data point,
@@ -219,6 +225,7 @@ where
         do_snapshot_method: bool,
         progress_counter: &Arc<AtomicU32>,
         single_ir: bool,
+        ir: &mut ImpulseResponse
     ) -> Vec<T> {
         let buffer = if single_ir {
             self.simulate_for_time_span_single_ir(
@@ -228,6 +235,7 @@ where
                 sample_rate,
                 scaling_factor,
                 do_snapshot_method,
+                ir
             )
         } else {
             self.simulate_for_time_span_multiple_irs(
@@ -269,8 +277,9 @@ where
         sample_rate: f64,
         scaling_factor: f64,
         do_snapshot_method: bool,
+        ir: &mut ImpulseResponse
     ) -> Vec<f64> {
-        let impulse_response = self.simulate_at_time(
+        *ir = self.simulate_at_time(
             0,
             number_of_rays,
             velocity,
@@ -278,7 +287,7 @@ where
             do_snapshot_method,
             true,
         );
-        impulse_response::apply_to_many_samples(&impulse_response, data, scaling_factor)
+        impulse_response::apply_to_many_samples(ir, data, scaling_factor)
     }
 
     #[allow(clippy::too_many_arguments)]
