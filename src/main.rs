@@ -1,5 +1,5 @@
-use std::time::Instant;
 use std::io::Write;
+use std::time::Instant;
 
 use demo::{ray::DEFAULT_PROPAGATION_SPEED, scene::SceneData, scene_builder};
 
@@ -109,6 +109,11 @@ fn main() {
         elapsed / 3600,
         (elapsed % 3600) / 60,
         elapsed % 60
+    );
+
+    println!(
+        "T60: {}",
+        impulse_response.len() as f64 / f64::from(header.sampling_rate)
     );
 
     let mut output_file = std::fs::File::create(std::path::Path::new(out_fname))

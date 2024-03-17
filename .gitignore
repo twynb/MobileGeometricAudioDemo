@@ -4,3 +4,4 @@ bacon.toml
 *.wav
 !testfiles/*.wav
 *.csv
+*.log
