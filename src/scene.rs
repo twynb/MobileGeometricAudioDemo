@@ -1,10 +1,4 @@
-use std::{
-    ops::Mul,
-    sync::{
-        atomic::{AtomicU32, Ordering},
-        Arc,
-    },
-};
+use std::ops::Mul;
 
 use generic_array::ArrayLength;
 use itertools::Itertools;
@@ -153,7 +147,6 @@ where
         sample_rate: f64,
         scaling_factor: f64,
         do_snapshot_method: bool,
-        progress_counter: &Arc<AtomicU32>,
         single_ir: bool,
     ) -> (BitDepth, ImpulseResponse) {
         let mut ir: ImpulseResponse = vec![];
@@ -165,9 +158,8 @@ where
                 sample_rate,
                 scaling_factor,
                 do_snapshot_method,
-                progress_counter,
                 single_ir,
-                &mut ir
+                &mut ir,
             )),
             BitDepth::Sixteen(data) => BitDepth::Sixteen(self.simulate_for_time_span_internal(
                 data,
@@ -176,9 +168,8 @@ where
                 sample_rate,
                 scaling_factor,
                 do_snapshot_method,
-                progress_counter,
                 single_ir,
-                &mut ir
+                &mut ir,
             )),
             BitDepth::TwentyFour(data) => {
                 BitDepth::TwentyFour(self.simulate_for_time_span_internal(
@@ -188,9 +179,8 @@ where
                     sample_rate,
                     scaling_factor,
                     do_snapshot_method,
-                    progress_counter,
                     single_ir,
-                &mut ir
+                    &mut ir,
                 ))
             }
             BitDepth::ThirtyTwoFloat(data) => {
@@ -201,9 +191,8 @@ where
                     sample_rate,
                     scaling_factor,
                     do_snapshot_method,
-                    progress_counter,
                     single_ir,
-                &mut ir
+                    &mut ir,
                 ))
             }
             BitDepth::Empty => BitDepth::Empty,
@@ -223,9 +212,8 @@ where
         sample_rate: f64,
         scaling_factor: f64,
         do_snapshot_method: bool,
-        progress_counter: &Arc<AtomicU32>,
         single_ir: bool,
-        ir: &mut ImpulseResponse
+        ir: &mut ImpulseResponse,
     ) -> Vec<T> {
         let buffer = if single_ir {
             self.simulate_for_time_span_single_ir(
@@ -235,7 +223,7 @@ where
                 sample_rate,
                 scaling_factor,
                 do_snapshot_method,
-                ir
+                ir,
             )
         } else {
             self.simulate_for_time_span_multiple_irs(
@@ -245,7 +233,6 @@ where
                 sample_rate,
                 scaling_factor,
                 do_snapshot_method,
-                progress_counter,
             )
         };
         let mut had_to_clip = false;
@@ -277,7 +264,7 @@ where
         sample_rate: f64,
         scaling_factor: f64,
         do_snapshot_method: bool,
-        ir: &mut ImpulseResponse
+        ir: &mut ImpulseResponse,
     ) -> Vec<f64> {
         *ir = self.simulate_at_time(
             0,
@@ -302,7 +289,6 @@ where
         sample_rate: f64,
         scaling_factor: f64,
         do_snapshot_method: bool,
-        progress_counter: &Arc<AtomicU32>,
     ) -> Vec<f64> {
         let buffers: Vec<Vec<f64>> = match self.scene.loop_duration {
             Some(duration) => self.simulate_for_time_span_looping(
@@ -312,7 +298,6 @@ where
                 sample_rate,
                 scaling_factor,
                 do_snapshot_method,
-                progress_counter,
                 duration,
             ),
             None => self.simulate_for_time_span_non_looping(
@@ -322,7 +307,6 @@ where
                 sample_rate,
                 scaling_factor,
                 do_snapshot_method,
-                progress_counter,
             ),
         };
         let max_len = buffers.iter().max_by_key(|vec| vec.len()).unwrap().len();
@@ -347,7 +331,6 @@ where
         sample_rate: f64,
         scaling_factor: f64,
         do_snapshot_method: bool,
-        progress_counter: &Arc<AtomicU32>,
     ) -> Vec<Vec<f64>> {
         data.iter()
             .enumerate()
@@ -365,10 +348,6 @@ where
                     scaling_factor,
                     do_snapshot_method,
                 );
-                {
-                    let cloned_counter = Arc::clone(progress_counter);
-                    cloned_counter.fetch_add(1, Ordering::AcqRel);
-                }
                 result
             })
             .collect()
@@ -383,7 +362,6 @@ where
         sample_rate: f64,
         scaling_factor: f64,
         do_snapshot_method: bool,
-        progress_counter: &Arc<AtomicU32>,
         loop_duration: u32,
     ) -> Vec<Vec<f64>> {
         data.iter()
@@ -406,10 +384,6 @@ where
                     do_snapshot_method,
                     loop_duration,
                 );
-                {
-                    let cloned_counter = Arc::clone(progress_counter);
-                    cloned_counter.fetch_add(1, Ordering::AcqRel);
-                }
                 result
             })
             .collect()
